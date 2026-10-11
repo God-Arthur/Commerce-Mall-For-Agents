@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 市场 — 让说真话成为最优策略 · McAfee 双向拍卖</title>
+<style>
+/* ================================================================
+   Agent 市场 · 可视化汇报页
+   自包含单文件 · 零外部依赖 · 与 agent-market/src 源码同构
+   ================================================================ */
+:root{
+  --bg:#f5f6fa;
+  --card:#ffffff;
+  --ink:#161e33;
+  --ink2:#5c6579;
+  --ink3:#8f97aa;
+  --line:#e4e7f0;
+  --line2:#eef0f6;
+  --buy:#d8434f;
+  --buy-soft:#fdeef0;
+  --sell:#2563eb;
+  --sell-soft:#eaf1ff;
+  --price:#b7791f;
+  --price-soft:#fdf6e3;
+  --spread:#7c3aed;
+  --spread-soft:#f3ecff;
+  --ok:#0f9960;
+  --ok-soft:#e6f7ef;
+  --ok-line:#8fd6b8;
+  --accent:#3b4cca;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--ink);
+  font-size:15.5px;
+  line-height:1.8;
+  -webkit-font-smoothing:antialiased;
+}
+main{overflow:visible}
+
+/* ---------- 顶部导航 ---------- */
+.topnav{
+  position:sticky;top:0;z-index:100;
+  background:rgba(255,255,255,.82);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.topnav .inner{
+  max-width:1152px;margin:0 auto;padding:0 28px;
+  display:flex;align-items:center;gap:8px;height:56px;
+}
+.topnav .brand{
+  font-weight:700;font-size:14.5px;letter-spacing:.2px;
+  display:flex;align-items:center;gap:9px;margin-right:auto;
+}
+.topnav .brand .dot{
+  width:9px;height:9px;border-radius:50%;
+  background:linear-gradient(135deg,#e04f4f,#7c3aed);
+  box-shadow:0 0 0 3px rgba(124,58,237,.12);
+}
+.topnav .brand small{color:var(--ink3);font-weight:500;font-size:12px;letter-spacing:.3px}
+.topnav a{
+  color:var(--ink2);text-decoration:none;font-size:13.5px;
+  padding:6px 12px;border-radius:8px;transition:.15s;
+  white-space:nowrap;
+}
+.topnav a:hover{background:var(--line2);color:var(--ink)}
+.topnav a.hot{color:var(--accent);font-weight:600}
+
+/* ---------- 通用 ---------- */
+.wrap{max-width:1152px;margin:0 auto;padding:0 28px}
+section{padding:84px 0 30px;scroll-margin-top:74px}
+.sec-head{margin-bottom:34px}
+.sec-head .kicker{
+  font-size:12.5px;font-weight:700;letter-spacing:.14em;
+  color:var(--accent);text-transform:uppercase;margin-bottom:10px;
+  display:flex;align-items:center;gap:8px;
+}
+.sec-head .kicker::before{content:"";width:22px;height:2px;background:var(--accent);border-radius:2px}
+.sec-head h2{
+  font-size:31px;line-height:1.35;letter-spacing:-.01em;font-weight:800;
+  margin-bottom:12px;
+}
+.sec-head p.lead{color:var(--ink2);font-size:16px;max-width:760px}
+.card{
+  background:var(--card);border:1px solid var(--line);
+  border-radius:16px;box-shadow:0 1px 2px rgba(22,30,51,.04),0 8px 28px -18px rgba(22,30,51,.12);
+}
+.hl{font-weight:700;color:var(--ink)}
+.hl-buy{color:var(--buy);font-weight:700}
+.hl-sell{color:var(--sell);font-weight:700}
+.hl-price{color:var(--price);font-weight:700}
+.hl-spread{color:var(--spread);font-weight:700}
+.mono{font-family:var(--mono)}
+.tag{
+  display:inline-block;font-size:12px;font-weight:600;line-height:1;
+  padding:5px 9px;border-radius:7px;letter-spacing:.02em;
+}
+.tag.red{background:var(--buy-soft);color:var(--buy)}
+.tag.blue{background:var(--sell-soft);color:var(--sell)}
+.tag.gold{background:var(--price-soft);color:var(--price)}
+.tag.purple{background:var(--spread-soft);color:var(--spread)}
+.tag.green{background:var(--ok-soft);color:var(--ok)}
+.tag.gray{background:var(--line2);color:var(--ink2)}
+
+/* ---------- Hero ---------- */
+.hero{padding:56px 0 10px}
+.hero-card{
+  position:relative;overflow:hidden;
+  background:
+    radial-gradient(1100px 480px at 88% -12%,rgba(124,58,237,.32),transparent 62%),
+    radial-gradient(900px 420px at -8% 108%,rgba(37,99,235,.28),transparent 60%),
+    linear-gradient(150deg,#12172b 0%,#171d36 48%,#141a30 100%);
+  border-radius:24px;color:#fff;
+  padding:52px 54px 44px;
+  box-shadow:0 24px 70px -30px rgba(18,23,43,.55);
+}
+.hero-card .grid-lines{
+  position:absolute;inset:0;opacity:.5;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(900px 460px at 60% 0%,#000 30%,transparent 78%);
+  -webkit-mask-image:radial-gradient(900px 460px at 60% 0%,#000 30%,transparent 78%);
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;
+  color:#c3cbf2;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.14);
+  padding:7px 13px;border-radius:999px;margin-bottom:22px;
+}
+.hero-badge .pulse{
+  width:7px;height:7px;border-radius:50%;background:#5eead4;
+  box-shadow:0 0 0 0 rgba(94,234,212,.7);
+  animation:pulse 2.2s infinite;
+}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(94,234,212,.55)}
+  70%{box-shadow:0 0 0 9px rgba(94,234,212,0)}
+  100%{box-shadow:0 0 0 0 rgba(94,234,212,0)}
+}
+.hero-card h1{
+  font-size:46px;line-height:1.24;font-weight:800;letter-spacing:-.015em;
+  margin-bottom:18px;max-width:820px;
+}
+.hero-card h1 .grad{
+  background:linear-gradient(92deg,#8ab4ff 8%,#c9b1ff 55%,#7ff0d8 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero-card .sub{
+  color:#aeb6d6;font-size:16.5px;max-width:760px;line-height:1.85;margin-bottom:30px;
+}
+.hero-card .sub b{color:#e8ecff;font-weight:600}
+.hero-kpis{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;
+  border-top:1px solid rgba(255,255,255,.1);padding-top:26px;
+}
+.hero-kpi .v{
+  font-family:var(--mono);font-size:25px;font-weight:700;letter-spacing:-.02em;
+  color:#fff;line-height:1.2;
+}
+.hero-kpi .v small{font-size:14px;color:#8f9ac6;font-weight:500;margin-left:2px}
+.hero-kpi .k{font-size:12.5px;color:#98a2c8;margin-top:5px;line-height:1.55}
+.hero-foot{
+  margin-top:26px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+  font-size:13px;color:#8f9ac6;
+}
+.hero-foot .chip{
+  font-family:var(--mono);font-size:12px;
+  border:1px solid rgba(255,255,255,.14);border-radius:7px;
+  padding:4px 10px;color:#c3cbf2;background:rgba(255,255,255,.05);
+}
+
+/* ---------- §1 问题 ---------- */
+.problem-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:22px;align-items:stretch}
+.problem-text{padding:30px 32px}
+.problem-text p{color:var(--ink2);margin-bottom:14px}
+.problem-text p b{color:var(--ink)}
+.principle-list{margin-top:20px;display:flex;flex-direction:column;gap:10px}
+.principle{
+  display:flex;gap:13px;align-items:flex-start;
+  background:#fafbfe;border:1px solid var(--line2);border-radius:12px;
+  padding:13px 15px;
+}
+.principle .pk{
+  flex:0 0 auto;font-family:var(--mono);font-weight:700;font-size:12.5px;
+  color:var(--accent);background:rgba(59,76,202,.08);
+  border-radius:7px;padding:4px 8px;margin-top:2px;letter-spacing:.02em;
+}
+.principle .pv{font-size:13.8px;color:var(--ink2);line-height:1.7}
+.principle .pv b{color:var(--ink)}
+.problem-viz{padding:26px;display:flex;flex-direction:column}
+.problem-viz .viz-title{
+  font-size:13px;font-weight:700;color:var(--ink3);letter-spacing:.06em;
+  text-transform:uppercase;margin-bottom:8px;
+}
+.problem-viz svg{width:100%;height:auto;flex:1}
+.problem-viz .viz-note{
+  font-size:13px;color:var(--ink3);line-height:1.7;margin-top:10px;
+  border-top:1px dashed var(--line);padding-top:12px;
+}
+.callout{
+  margin-top:22px;border-radius:14px;padding:18px 22px;
+  background:linear-gradient(120deg,#fdf6e3,#fef9ef);
+  border:1px solid #f0e2bd;
+  display:flex;gap:14px;align-items:flex-start;
+}
+.callout .ico{
+  flex:0 0 auto;width:30px;height:30px;border-radius:9px;
+  background:var(--price);color:#fff;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:15px;margin-top:2px;
+}
+.callout p{font-size:14.5px;color:#7a5b12;line-height:1.8}
+.callout p b{color:#5d4408}
+
+/* ---------- §2 机制 ---------- */
+.mech-toolbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-bottom:16px;
+}
+.mech-toolbar .lbl{font-size:13px;color:var(--ink3);font-weight:600;margin-right:2px}
+.btn{
+  font-family:var(--sans);font-size:13.5px;font-weight:600;
+  border:1px solid var(--line);background:#fff;color:var(--ink2);
+  padding:8px 15px;border-radius:10px;cursor:pointer;transition:.15s;
+  display:inline-flex;align-items:center;gap:7px;
+}
+.btn:hover{border-color:#c9cfdf;color:var(--ink);background:#fbfcff}
+.btn.active{
+  background:var(--accent);border-color:var(--accent);color:#fff;
+  box-shadow:0 6px 18px -8px rgba(59,76,202,.6);
+}
+.btn.primary{
+  background:var(--ink);border-color:var(--ink);color:#fff;
+}
+.btn.primary:hover{background:#232d4d}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn svg{width:13px;height:13px}
+
+.slider-panel{
+  display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;
+}
+.slider-col{padding:16px 19px 12px;border-radius:14px;border:1px solid var(--line);background:#fff}
+.slider-col.buyers{background:linear-gradient(180deg,#fff9f9,#fff)}
+.slider-col.sellers{background:linear-gradient(180deg,#f8fbff,#fff)}
+.slider-col .sc-head{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;
+}
+.slider-col .sc-head .t{font-size:13.5px;font-weight:700}
+.slider-col.buyers .t{color:var(--buy)}
+.slider-col.sellers .t{color:var(--sell)}
+.slider-col .sc-head .hint{font-size:12px;color:var(--ink3)}
+.srow{display:grid;grid-template-columns:58px 1fr 64px;gap:11px;align-items:center;padding:5px 0}
+.srow .nm{font-family:var(--mono);font-size:13px;font-weight:700}
+.srow .nm.b{color:var(--buy)}
+.srow .nm.s{color:var(--sell)}
+.srow input[type=range]{width:100%;height:22px;cursor:pointer;background:transparent}
+.srow input[type=range].rbuy{accent-color:var(--buy)}
+.srow input[type=range].rsell{accent-color:var(--sell)}
+.srow .val{
+  font-family:var(--mono);font-size:13.5px;font-weight:700;text-align:center;
+  border-radius:8px;padding:3px 0;border:1px solid transparent;
+  transition:.12s;
+}
+.srow .val.b{color:var(--buy);background:var(--buy-soft)}
+.srow .val.s{color:var(--sell);background:var(--sell-soft)}
+
+.stage{position:relative;padding:22px 22px 12px;margin-bottom:16px;overflow:hidden}
+#mechSvg{width:100%;height:auto;display:block}
+#mechSvg text{font-family:var(--sans);}
+#mechSvg .mono{font-family:var(--mono)}
+.step-caption{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  border-top:1px dashed var(--line);margin-top:6px;padding:13px 4px 4px;
+}
+.step-caption .stepno{
+  font-family:var(--mono);font-size:12px;font-weight:700;color:#fff;
+  background:var(--accent);border-radius:7px;padding:3px 9px;
+}
+.step-caption .steptext{font-size:13.8px;color:var(--ink2);flex:1;min-width:260px}
+.step-caption .steptext b{color:var(--ink)}
+
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin-bottom:26px}
+.metric{padding:15px 17px 13px;border-radius:14px}
+.metric .mk{font-size:12.5px;color:var(--ink3);font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.metric .mk .sw{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+.metric .mv{font-family:var(--mono);font-size:23px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.metric .mn{font-size:12px;color:var(--ink3);margin-top:5px;line-height:1.6}
+.metric .mn b{color:var(--ink2)}
+
+.explain-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:6px}
+.explain-card{padding:22px 24px;border-radius:16px}
+.explain-card h4{font-size:15.5px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:9px}
+.explain-card p{font-size:14px;color:var(--ink2);line-height:1.85;margin-bottom:9px}
+.explain-card p:last-child{margin-bottom:0}
+.explain-card p b{color:var(--ink)}
+.badge-a{background:var(--ok-soft);color:var(--ok);font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px}
+.badge-b{background:var(--spread-soft);color:var(--spread);font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px}
+
+/* ---------- §3 说真话 ---------- */
+.truth-layout{display:grid;grid-template-columns:392px 1fr;gap:20px;align-items:start}
+.truth-side{display:flex;flex-direction:column;gap:16px}
+.truth-panel{padding:22px 24px}
+.truth-panel .tp-head{font-size:13px;font-weight:700;color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px}
+.role-line{
+  font-size:14.5px;color:var(--ink2);line-height:1.8;margin-bottom:16px;
+}
+.role-line b{color:var(--ink)}
+.slider-big{margin:6px 0 4px}
+.slider-big input[type=range]{width:100%;height:30px;accent-color:var(--buy);cursor:pointer}
+.slider-axis{
+  display:flex;justify-content:space-between;font-family:var(--mono);
+  font-size:11.5px;color:var(--ink3);margin-top:2px;padding:0 2px;
+}
+.truth-result{margin-top:18px;border-radius:13px;background:#fafbfe;border:1px solid var(--line2);padding:15px 17px}
+.truth-result .tr-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font-size:14px}
+.truth-result .tr-row .k{color:var(--ink2)}
+.truth-result .tr-row .v{font-family:var(--mono);font-weight:700;font-size:15px}
+.truth-result .divider{border-top:1px dashed var(--line);margin:7px 0}
+.verdict{
+  margin-top:14px;border-radius:12px;padding:13px 16px;font-size:14px;line-height:1.75;
+  transition:.2s;
+}
+.verdict.good{background:var(--ok-soft);color:#0b7a4d;border:1px solid var(--ok-line)}
+.verdict.bad{background:var(--buy-soft);color:#a3323b;border:1px solid #f2c4c9}
+.verdict.neutral{background:var(--price-soft);color:#7a5b12;border:1px solid #f0e2bd}
+.verdict b{font-weight:700}
+.truth-chart{padding:20px 22px 12px;border-radius:16px;min-height:420px}
+.truth-chart .tc-head{
+  display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;
+}
+.truth-chart .tc-head .t{font-size:14.5px;font-weight:700}
+.truth-chart .tc-head .s{font-size:12.5px;color:var(--ink3)}
+#truthSvg{width:100%;height:auto;display:block}
+.truth-table{margin-top:18px;padding:20px 24px 16px;border-radius:16px}
+.table-wrap{overflow-x:auto}
+table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+table.tbl th{
+  text-align:left;font-size:12px;font-weight:700;color:var(--ink3);
+  letter-spacing:.05em;text-transform:uppercase;
+  border-bottom:1.5px solid var(--line);padding:8px 10px;white-space:nowrap;
+}
+table.tbl td{padding:8px 10px;border-bottom:1px solid var(--line2);font-family:var(--mono);font-size:13px;white-space:nowrap}
+table.tbl td.n{font-family:var(--sans)}
+table.tbl tr.honest td{background:#f5fbf8}
+table.tbl tr.honest td.n{font-weight:700;color:var(--ok)}
+table.tbl tr:hover td{background:#fafbfe}
+table.tbl tr.honest:hover td{background:#eef8f2}
+.tbl-note{font-size:12.5px;color:var(--ink3);margin-top:10px;line-height:1.7}
+
+.soul-quote{
+  margin-top:22px;border-radius:16px;padding:26px 30px;
+  background:
+    radial-gradient(700px 200px at 100% 0%,rgba(124,58,237,.08),transparent 60%),
+    linear-gradient(120deg,#171d36,#1d2544);
+  color:#e8ecff;position:relative;overflow:hidden;
+}
+.soul-quote .qmark{
+  position:absolute;right:26px;top:10px;font-size:96px;line-height:1;
+  color:rgba(255,255,255,.07);font-family:Georgia,serif;font-weight:700;
+}
+.soul-quote p{font-size:17.5px;line-height:1.8;font-weight:600;position:relative}
+.soul-quote p .hl2{
+  background:linear-gradient(92deg,#8ab4ff,#c9b1ff);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.soul-quote .qsub{font-size:13.5px;color:#98a2c8;margin-top:10px;font-weight:400;line-height:1.8}
+
+/* ---------- §4 验证 ---------- */
+.verify-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.vkpi{padding:20px 22px 17px;border-radius:16px;position:relative;overflow:hidden}
+.vkpi .vt{font-size:12.5px;font-weight:700;color:var(--ink3);letter-spacing:.05em;margin-bottom:8px}
+.vkpi .vv{font-family:var(--mono);font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.vkpi .vv small{font-size:15px;font-weight:600;color:var(--ink3);margin-left:3px}
+.vkpi .vd{font-size:12.5px;color:var(--ink3);margin-top:7px;line-height:1.65}
+.vkpi .vd b{color:var(--ink2)}
+.vkpi.ok-line{border-top:3px solid var(--ok)}
+.verify-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start}
+.verify-card{padding:22px 26px 18px;border-radius:16px}
+.verify-card h4{font-size:15px;font-weight:700;margin-bottom:6px}
+.verify-card .sub{font-size:13px;color:var(--ink2);margin-bottom:14px;line-height:1.7}
+.verify-card .sub b{color:var(--ink)}
+.checkmark{color:var(--ok);font-weight:800}
+.xmark{color:var(--buy);font-weight:800}
+.vs-box{
+  display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;
+  margin-top:6px;
+}
+.vs-item{border-radius:13px;padding:16px 18px;text-align:center}
+.vs-item.a{background:#fdf3f4;border:1px solid #f2c4c9}
+.vs-item.b{background:var(--ok-soft);border:1px solid var(--ok-line)}
+.vs-item .vname{font-size:13px;font-weight:700;margin-bottom:8px}
+.vs-item.a .vname{color:var(--buy)}
+.vs-item.b .vname{color:var(--ok)}
+.vs-item .vnum{font-family:var(--mono);font-size:29px;font-weight:800;line-height:1.1}
+.vs-item.a .vnum{color:var(--buy)}
+.vs-item.b .vnum{color:var(--ok)}
+.vs-item .vsub{font-size:12px;color:var(--ink3);margin-top:5px;line-height:1.6}
+.vs-mid{font-size:13px;color:var(--ink3);font-weight:700}
+
+/* ---------- §5 系统 ---------- */
+.arch-card{padding:26px 26px 18px;border-radius:18px;margin-bottom:20px}
+.arch-card svg{width:100%;height:auto;display:block}
+.sys-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;align-items:start;margin-top:20px}
+.sys-card{padding:22px 26px 18px;border-radius:16px}
+.sys-card h4{font-size:15px;font-weight:700;margin-bottom:12px}
+.codeblock{
+  background:#141a30;color:#dbe3ff;border-radius:12px;
+  font-family:var(--mono);font-size:12.3px;line-height:1.75;
+  padding:16px 18px;overflow-x:auto;white-space:pre;
+}
+.codeblock .c{color:#7d8ab8}
+.codeblock .g{color:#7ff0d8}
+.codeblock .y{color:#ffd479}
+.codeblock .r{color:#ff9ba8}
+.api-note{font-size:12.5px;color:var(--ink3);margin-top:10px;line-height:1.7}
+
+/* ---------- §6 发现 ---------- */
+.finding-hero{
+  border-radius:18px;padding:30px 34px;
+  background:linear-gradient(120deg,#fff,#fbfaff);
+  border:1px solid var(--line);
+  display:grid;grid-template-columns:1.05fr .95fr;gap:26px;align-items:center;
+}
+.finding-hero .fh-text h3{font-size:22px;font-weight:800;margin-bottom:12px;line-height:1.4}
+.finding-hero .fh-text p{font-size:14.5px;color:var(--ink2);line-height:1.85;margin-bottom:10px}
+.finding-hero .fh-text p b{color:var(--ink)}
+.counter-card{border-radius:14px;border:1px solid var(--line);overflow:hidden}
+.counter-card .cc-head{
+  background:#fafbfe;border-bottom:1px solid var(--line2);
+  padding:10px 16px;font-size:12.5px;font-weight:700;color:var(--ink3);letter-spacing:.05em;
+}
+.counter-card .cc-body{padding:14px 16px}
+.cc-row{display:flex;align-items:center;gap:12px;padding:7px 0;font-size:13.5px}
+.cc-row .cc-lab{width:118px;color:var(--ink2);flex:0 0 auto}
+.cc-row .cc-bar{height:26px;border-radius:7px;display:flex;align-items:center;padding:0 9px;font-family:var(--mono);font-size:12.5px;font-weight:700;color:#fff;white-space:nowrap;min-width:34px}
+.cc-row .cc-bar.honest{background:#b9c1d6}
+.cc-row .cc-bar.lie{background:var(--buy)}
+.cc-foot{font-size:12.5px;color:var(--ink3);line-height:1.7;border-top:1px dashed var(--line);padding:10px 16px 12px}
+
+/* ---------- 页脚 ---------- */
+footer{
+  margin-top:90px;background:#141a30;color:#98a2c8;
+  padding:46px 0 40px;font-size:13.5px;
+}
+footer .wrap{display:grid;grid-template-columns:1.2fr .8fr .8fr;gap:30px}
+footer h5{color:#dbe3ff;font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:13px}
+footer ul{list-style:none}
+footer li{margin-bottom:8px;line-height:1.7}
+footer li b{color:#c3cbf2;font-weight:600}
+footer .ref{font-size:12.5px;line-height:1.8}
+footer .foot-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+footer .foot-badges .chip{
+  font-family:var(--mono);font-size:11.5px;border:1px solid rgba(255,255,255,.13);
+  border-radius:7px;padding:4px 9px;color:#aeb6d6;
+}
+.foot-bottom{
+  max-width:1152px;margin:26px auto 0;padding:18px 28px 0;
+  border-top:1px solid rgba(255,255,255,.08);
+  font-size:12.5px;color:#7d8ab8;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;
+}
+
+/* ---------- 滚动进入动画（JS 生效时才隐藏，避免脚本异常导致内容不可见） ---------- */
+.reveal{transition:opacity .55s ease,transform .55s ease}
+.reveal.pre{opacity:0;transform:translateY(16px)}
+
+/* ---------- SVG 元素过渡 ---------- */
+.anim-el{transition:opacity .45s ease,transform .45s ease}
+.fade-hidden{opacity:0;pointer-events:none}
+
+/* ---------- 响应式 ---------- */
+@media (max-width:1020px){
+  .problem-grid,.truth-layout,.verify-grid,.sys-grid,.finding-hero{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(3,1fr)}
+  .verify-kpis{grid-template-columns:repeat(2,1fr)}
+  .hero-kpis{grid-template-columns:repeat(2,1fr)}
+  .hero-card h1{font-size:36px}
+  .slider-panel{grid-template-columns:1fr}
+  footer .wrap{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .hero-card{padding:34px 26px}
+  .hero-card h1{font-size:29px}
+  .topnav .inner{overflow-x:auto}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ 顶部导航 ═══════════════ -->
+<nav class="topnav">
+  <div class="inner">
+    <div class="brand">
+      <span class="dot"></span>
+      agent-market <small>McAfee 双向拍卖 · v1</small>
+    </div>
+    <a href="#problem">问题</a>
+    <a href="#mechanism">机制</a>
+    <a href="#truthful" class="hot">说真话测试</a>
+    <a href="#verify">验证</a>
+    <a href="#system">系统</a>
+    <a href="#finding">发现</a>
+  </div>
+</nav>
+
+<!-- ═══════════════ Hero ═══════════════ -->
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-card">
+      <div class="grid-lines"></div>
+      <div class="hero-badge"><span class="pulse"></span>Commerce-Mall-For-Agents · 机制设计实验</div>
+      <h1>让<span class="grad">说真话</span>成为<br>每个 agent 的最优策略</h1>
+      <p class="sub">
+        供买方 / 卖方 agent 接入的双向拍卖市场。通过 <b>McAfee (1992) 占优策略机制</b>，
+        让双方<b>如实上报真实估值与成本</b>成为各自的最优策略 —— 由此得到真实可信的价格信号，
+        而不必依赖重复讨价还价的猜谜。
+      </p>
+      <div class="hero-kpis">
+        <div class="hero-kpi">
+          <div class="v mono">695,264</div>
+          <div class="k">次 DSIC 穷举检验<br>违反 = 0</div>
+        </div>
+        <div class="hero-kpi">
+          <div class="v mono">43<small>/43</small></div>
+          <div class="k">项测试全部通过<br>持续可复现</div>
+        </div>
+        <div class="hero-kpi">
+          <div class="v mono">0<small>贴钱</small></div>
+          <div class="k">强预算平衡<br>买方总付 ≥ 卖方总收</div>
+        </div>
+        <div class="hero-kpi">
+          <div class="v mono">≤1<small>笔</small></div>
+          <div class="k">效率损失上界<br>且上界是紧的</div>
+        </div>
+      </div>
+      <div class="hero-foot">
+        <span class="chip">Node 22 · TypeScript</span>
+        <span class="chip">零 npm 依赖</span>
+        <span class="chip">43/43 测试</span>
+        <span class="chip">周期性出清 · Call Market</span>
+        <span style="margin-left:auto">R. P. McAfee, JET 1992 · Myerson–Satterthwaite 1983</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ═══════════════ §1 问题 ═══════════════ -->
+<section id="problem">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">01 · 问题</div>
+      <h2>市场想要真实的价格，但每个人都想藏住自己的底牌</h2>
+      <p class="lead">
+        买方 agent 知道自己的支付意愿 v，卖方 agent 知道自己的成本 c —— 两边都<strong>不想让对方看见</strong>。
+        靠来回砍价，就是一场低效的猜谜：藏数字、试探、虚张声势。价格信号因此失真。
+      </p>
+    </div>
+
+    <div class="problem-grid reveal">
+      <div class="card problem-text">
+        <p>
+          机制设计的解法不是「劝大家诚实」，而是<b>改变规则本身</b>：
+          定一套报价与结算的规则，让「如实上报」恰好成为每个人的最优选择 ——
+          哪怕他满脑子想的都是怎么占便宜。
+        </p>
+        <p>这套机制需要同时满足三个条件：</p>
+        <div class="principle-list">
+          <div class="principle">
+            <span class="pk">DSIC</span>
+            <span class="pv"><b>占优策略激励相容</b> —— 无论别人怎么报，如实报价都是你的最优策略。<br>这是全套性质里最难满足、也最值钱的一条。</span>
+          </div>
+          <div class="principle">
+            <span class="pk">IR</span>
+            <span class="pv"><b>个体理性</b> —— 自愿参与，成交的买方付款不超过自己的估值，卖方收款不低于自己的成本，没人被迫做亏本生意。</span>
+          </div>
+          <div class="principle">
+            <span class="pk">BB</span>
+            <span class="pv"><b>强预算平衡</b> —— 买方总付款 ≥ 卖方总收款。平台是「交易所 + 清算所」，不靠补贴运转、也不需要另找钱填窟窿。</span>
+          </div>
+        </div>
+      </div>
+      <div class="card problem-viz">
+        <div class="viz-title">议价 = 猜谜 · 出清 = 报价</div>
+        <!-- 猜谜 vs 机制 对照图 -->
+        <svg viewBox="0 0 520 330" role="img" aria-label="讨价还价猜谜与机制设计出清的对比示意">
+          <defs>
+            <marker id="arrG" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+              <path d="M0,0 L9,4.5 L0,9 Z" fill="#8f97aa"></path>
+            </marker>
+            <marker id="arrG2" markerWidth="9" markerHeight="9" refX="1.5" refY="4.5" orient="auto">
+              <path d="M9,0 L0,4.5 L9,9 Z" fill="#8f97aa"></path>
+            </marker>
+          </defs>
+
+          <!-- 上：讨价还价 -->
+          <text x="20" y="26" font-size="12.5" font-weight="700" fill="#5c6579" letter-spacing="1">来回讨价还价</text>
+          <!-- 买方盒子 -->
+          <rect x="20" y="44" width="180" height="96" rx="12" fill="#fdeef0" stroke="#f0c9cd"></rect>
+          <text x="110" y="72" text-anchor="middle" font-size="13" font-weight="700" fill="#d8434f">买方 agent</text>
+          <text x="110" y="94" text-anchor="middle" font-size="12" fill="#a3323b">真实支付意愿 v = 100</text>
+          <text x="110" y="116" text-anchor="middle" font-size="11.5" fill="#a3323b">先报 70，慢慢抬</text>
+          <!-- 卖方盒子 -->
+          <rect x="320" y="44" width="180" height="96" rx="12" fill="#eaf1ff" stroke="#c7d8f7"></rect>
+          <text x="410" y="72" text-anchor="middle" font-size="13" font-weight="700" fill="#2563eb">卖方 agent</text>
+          <text x="410" y="94" text-anchor="middle" font-size="12" fill="#1e4fbb">真实成本 c = 75</text>
+          <text x="410" y="116" text-anchor="middle" font-size="11.5" fill="#1e4fbb">先报 110，慢慢降</text>
+          <!-- 拉扯箭头 -->
+          <line x1="204" y1="80" x2="314" y2="80" stroke="#8f97aa" stroke-width="1.6" marker-end="url(#arrG)"></line>
+          <line x1="316" y1="104" x2="206" y2="104" stroke="#8f97aa" stroke-width="1.6" marker-end="url(#arrG2)"></line>
+          <text x="260" y="72" text-anchor="middle" font-size="11" fill="#8f97aa">试探</text>
+          <text x="260" y="120" text-anchor="middle" font-size="11" fill="#8f97aa">拉锯</text>
+          <text x="260" y="168" text-anchor="middle" font-size="12" fill="#8f97aa">双方都在骗 · 结果取决于谁更会猜</text>
+
+          <!-- 分割线 -->
+          <line x1="20" y1="188" x2="500" y2="188" stroke="#e4e7f0" stroke-width="1.4" stroke-dasharray="5 5"></line>
+
+          <!-- 下：机制设计 -->
+          <text x="20" y="216" font-size="12.5" font-weight="700" fill="#5c6579" letter-spacing="1">机制设计：各报一个数，规则说话</text>
+          <rect x="20" y="234" width="180" height="74" rx="12" fill="#fdeef0" stroke="#f0c9cd"></rect>
+          <text x="110" y="262" text-anchor="middle" font-size="13" font-weight="700" fill="#d8434f">买方报 v</text>
+          <text x="110" y="284" text-anchor="middle" font-size="12.5" font-family="monospace" fill="#a3323b">报 100 最好 ← 结论</text>
+          <rect x="320" y="234" width="180" height="74" rx="12" fill="#eaf1ff" stroke="#c7d8f7"></rect>
+          <text x="410" y="262" text-anchor="middle" font-size="13" font-weight="700" fill="#2563eb">卖方报 c</text>
+          <text x="410" y="284" text-anchor="middle" font-size="12.5" font-family="monospace" fill="#1e4fbb">报 75 最好 ← 结论</text>
+          <line x1="204" y1="262" x2="230" y2="262" stroke="#b7791f" stroke-width="2"></line>
+          <line x1="290" y1="262" x2="316" y2="262" stroke="#b7791f" stroke-width="2"></line>
+          <rect x="230" y="240" width="60" height="44" rx="9" fill="#fdf6e3" stroke="#f0e2bd"></rect>
+          <text x="260" y="258" text-anchor="middle" font-size="11.5" font-weight="700" fill="#b7791f">机制</text>
+          <text x="260" y="274" text-anchor="middle" font-size="10.5" fill="#b7791f">统一出清</text>
+          <text x="260" y="326" text-anchor="middle" font-size="12" fill="#8f97aa">如实报价是占优策略 · 价格信号可信</text>
+        </svg>
+        <div class="viz-note">两种世界的区别：上边靠猜别人，下边只用管好自己的数字 —— 机制接手了「防欺骗」的工作。</div>
+      </div>
+    </div>
+
+    <div class="callout reveal">
+      <div class="ico">!</div>
+      <p>
+        <b>但有一个理论上的天花板：</b>Myerson–Satterthwaite 定理（1983）证明，当买卖双方都有私人信息时，
+        「占优策略真话 + 个体理性 + 预算平衡 + 完全效率」<b>四者不可兼得</b>。
+        唯一能让步的是效率 —— 本机制选择牺牲<b>至多一笔边际交易</b>，其余三条全部保住。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ §2 机制 ═══════════════ -->
+<section id="mechanism">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">02 · 机制</div>
+      <h2>McAfee 出清：一轮报价，一次撮合</h2>
+      <p class="lead">
+        市场按轮次运行：每轮内收集全部报价，轮末统一出清 —— 没有先后优势，没有追溯定价。
+        下面这张图就是出清引擎的全部逻辑，可用滑块直接改报价，看结果如何变化。
+      </p>
+    </div>
+
+    <!-- 预设 -->
+    <div class="mech-toolbar reveal">
+      <span class="lbl">预设场景</span>
+      <button class="btn preset active" data-preset="0">牺牲一笔（分支 b）</button>
+      <button class="btn preset" data-preset="1">全部成交（分支 a）</button>
+      <button class="btn preset" data-preset="2">无有效交易</button>
+      <span style="flex:1"></span>
+      <button class="btn" id="demoBtn">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>
+        分步演示出清
+      </button>
+      <button class="btn" id="resetBtn">重置</button>
+    </div>
+
+    <!-- 滑块控制 -->
+    <div class="slider-panel reveal">
+      <div class="slider-col buyers">
+        <div class="sc-head"><span class="t">买方 agent · 出价 v</span><span class="hint">拖动调整报价</span></div>
+        <div class="srow"><span class="nm b">b1</span><input type="range" class="rbuy" id="rb-b0" min="0" max="60" step="1" value="30"><span class="val b" id="rv-b0">30</span></div>
+        <div class="srow"><span class="nm b">b2</span><input type="range" class="rbuy" id="rb-b1" min="0" max="60" step="1" value="26"><span class="val b" id="rv-b1">26</span></div>
+        <div class="srow"><span class="nm b">b3</span><input type="range" class="rbuy" id="rb-b2" min="0" max="60" step="1" value="19"><span class="val b" id="rv-b2">19</span></div>
+      </div>
+      <div class="slider-col sellers">
+        <div class="sc-head"><span class="t">卖方 agent · 要价 c</span><span class="hint">拖动调整报价</span></div>
+        <div class="srow"><span class="nm s">s1</span><input type="range" class="rsell" id="rb-a0" min="0" max="60" step="1" value="8"><span class="val s" id="rv-a0">8</span></div>
+        <div class="srow"><span class="nm s">s2</span><input type="range" class="rsell" id="rb-a1" min="0" max="60" step="1" value="17"><span class="val s" id="rv-a1">17</span></div>
+        <div class="srow"><span class="nm s">s3</span><input type="range" class="rsell" id="rb-a2" min="0" max="60" step="1" value="40"><span class="val s" id="rv-a2">40</span></div>
+      </div>
+    </div>
+
+    <!-- 主图 -->
+    <div class="card stage reveal">
+      <svg id="mechSvg" viewBox="0 0 900 452" role="img" aria-label="McAfee 供需阶梯出清图"></svg>
+      <div class="step-caption">
+        <span class="stepno" id="stepNo">4/4</span>
+        <span class="steptext" id="stepText">当前显示完整出清结果。点击「分步演示出清」从头逐步观看。</span>
+      </div>
+    </div>
+
+    <!-- 指标 -->
+    <div class="metrics reveal" id="metricsRow">
+      <div class="card metric">
+        <div class="mk"><span class="sw" style="background:#8f97aa"></span>完全效率 k*</div>
+        <div class="mv" id="mK">2</div>
+        <div class="mn">满足 v(i) ≥ c(i) 的最大笔数</div>
+      </div>
+      <div class="card metric">
+        <div class="mk"><span class="sw" style="background:#0f9960"></span>实际成交</div>
+        <div class="mv" id="mTraded">1</div>
+        <div class="mn" id="mTradedNote">分支 b · 牺牲 1 笔</div>
+      </div>
+      <div class="card metric">
+        <div class="mk"><span class="sw" style="background:#d8434f"></span>买方付 / 卖方收</div>
+        <div class="mv"><span id="mBuyPrice">26</span> <span style="color:#c9cfdf">/</span> <span id="mSellPrice" style="color:#2563eb">17</span></div>
+        <div class="mn" id="mPriceNote">每单位 · 双边定价</div>
+      </div>
+      <div class="card metric">
+        <div class="mk"><span class="sw" style="background:#7c3aed"></span>平台每笔留存</div>
+        <div class="mv" id="mSpread">9</div>
+        <div class="mn" id="mSpreadNote">= 26 − 17 · 只赚不贴</div>
+      </div>
+      <div class="card metric">
+        <div class="mk"><span class="sw" style="background:#b7791f"></span>效率损失</div>
+        <div class="mv" id="mLoss">1</div>
+        <div class="mn">相对完全效率 · 上界 ≤ 1</div>
+      </div>
+    </div>
+
+    <!-- 解释 -->
+    <div class="explain-grid reveal">
+      <div class="card explain-card">
+        <h4>怎么读这张图</h4>
+        <p>
+          <span class="hl-buy">红色阶梯</span>是买方报价的降序排列（需求），
+          <span class="hl-sell">蓝色阶梯</span>是卖方要价的升序排列（供给）。
+          第 i 个单位的买方出价 v(i) 与卖方要价 c(i) 一对一对齐比较，
+          <b>v(i) ≥ c(i) 能成立的最大 i 就是 k*</b> —— 完全效率下能成交的笔数。
+        </p>
+        <p>
+          图右侧灰色的「第一对被排除的报价」v(k*+1)、c(k*+1) 是定价的钥匙：
+          它们的中间价 <span class="mono">p0 = (v(k*+1) + c(k*+1)) / 2</span> 若恰好落在
+          [c(k*), v(k*)] 区间内，则 k* 笔全部按 p0 统一成交（<span class="badge-a">分支 a</span>）。
+        </p>
+        <p>
+          若 p0 越界、或第 k*+1 位根本不存在，则退回
+          <span class="badge-b">分支 b</span>：牺牲第 k* 笔，用<b>被牺牲者的报价</b>定价 ——
+          买方付 v(k*)、卖方收 c(k*)，两者之差归平台。
+        </p>
+      </div>
+      <div class="card explain-card">
+        <h4>为什么「牺牲一笔」是必须的</h4>
+        <p>
+          DSIC 的要害是<b>「没有任何人的成交价依赖于他自己的报价」</b>。
+          分支 a 里，价格 p0 由第 k*+1 名决定 —— 那是<b>没能成交的人</b>，成交者无法通过报价影响它。
+        </p>
+        <p>
+          而当第 k*+1 名不存在时（比如买方刚好只有 k* 个），若硬用「人工上下界」补位算 p0，
+          成交者的报价就会溜进定价公式 —— <b>DSIC 应声碎裂</b>。
+          正确做法是退回分支 b：连定价用的 v(k*) 和 c(k*) 也属于<b>被牺牲的边际交易者</b>，
+          与成交者无关。
+        </p>
+        <p>
+          这就是 Myerson–Satterthwaite 定理要求的代价：<b>至多牺牲一笔交易</b>。
+          市场越厚，这一笔越无关紧要 —— 代价有上界，收益（诚实的价格信号）却是全场的。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ §3 说真话 ═══════════════ -->
+<section id="truthful">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">03 · 核心交互</div>
+      <h2>你试试压价或抬价 —— 能比说真话更好吗？</h2>
+      <p class="lead">
+        现在你就是买方 agent <b>b1</b>，真实支付意愿是 <b>30</b>。
+        同一轮里还有 b2 报 26、b3 报 19，卖方 s1/s2/s3 报 8/17/40。
+        拖动下面的滑块改变自己的报价，观察你的<b>真实效用</b>如何变化。
+      </p>
+    </div>
+
+    <div class="truth-layout reveal">
+      <!-- 左：控制 + 结果 -->
+      <div class="truth-side">
+        <div class="card truth-panel">
+          <div class="tp-head">你的报价（真实价值 = 30）</div>
+          <div class="role-line">
+            你是 <b style="color:var(--buy)">b1</b>。其他 agent 全部如实报价，纹丝不动。
+          </div>
+          <div class="slider-big">
+            <input type="range" id="bidSlider" min="18" max="60" step="1" value="30">
+          </div>
+          <div class="slider-axis"><span>18</span><span>30（如实）</span><span>60</span></div>
+          <div class="truth-result">
+            <div class="tr-row"><span class="k">你的报价</span><span class="v" id="trBid">30</span></div>
+            <div class="tr-row"><span class="k">是否成交</span><span class="v" id="trTraded">是</span></div>
+            <div class="tr-row"><span class="k">成交单价</span><span class="v" id="trPrice">26</span></div>
+            <div class="divider"></div>
+            <div class="tr-row"><span class="k">你的真实效用</span><span class="v" id="trUtil">4.0</span></div>
+            <div class="tr-row"><span class="k">如实报价的效用</span><span class="v" id="trHonestUtil" style="color:var(--ok)">4.0</span></div>
+          </div>
+          <div class="verdict good" id="verdictBox">
+            <b>最大值。</b>如实报价拿到的效用 4.0，就是这张图上的最高点。
+          </div>
+        </div>
+        <div class="card truth-panel" style="padding:18px 24px">
+          <div class="tp-head" style="margin-bottom:10px">三条经验法则</div>
+          <div class="role-line" style="margin-bottom:9px">
+            <span class="tag red">压价</span> 报低于 26 → 名次掉出前 k，<b>直接丢席位</b>，效用归 0。
+          </div>
+          <div class="role-line" style="margin-bottom:9px">
+            <span class="tag blue">抬价</span> 报高于 26 → 照样成交，但价格由<b>没成交的 b2（26）</b>决定 —— 你再抬，价格纹丝不动。
+          </div>
+          <div class="role-line" style="margin-bottom:0">
+            <span class="tag green">如实</span> 报 30 → 与抬价效用相同且不劣于任何策略：<b>这就是弱占优</b>。
+          </div>
+        </div>
+      </div>
+
+      <!-- 右：效用曲线 -->
+      <div>
+        <div class="card truth-chart">
+          <div class="tc-head">
+            <span class="t">你的真实效用 vs 你的报价</span>
+            <span class="s">其余 agent 保持不变 · 效用 = 30 − 成交单价</span>
+          </div>
+          <svg id="truthSvg" viewBox="0 0 640 384" role="img" aria-label="真实效用随报价变化的阶梯曲线"></svg>
+        </div>
+        <div class="card truth-table">
+          <div class="tp-head" style="font-size:13px;font-weight:700;color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">离散报价点的完整对照（仿真脚本输出）</div>
+          <div class="table-wrap">
+            <table class="tbl" id="truthTbl">
+              <thead>
+                <tr><th>你的报价</th><th>成交？</th><th>成交单价</th><th>你的真实效用</th></tr>
+              </thead>
+              <tbody><!-- JS 填充 --></tbody>
+            </table>
+          </div>
+          <div class="tbl-note">
+            「真实效用」列假设你的真实价值恒为 30 —— 这才是你实际赚到的钱。
+            可以看到它的最大值 4.0，在且仅在报价 ≥ 26 时取到；如实报价 30 正落在其中。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="soul-quote reveal">
+      <div class="qmark">&ldquo;</div>
+      <p>价格由<span class="hl2">没能成交的人</span>决定，而不是由你自己决定 —— 这是整份工作的灵魂。</p>
+      <p class="qsub">
+        分支 a：价格 p0 由第 k*+1 名（未成交）定。分支 b：价格由被牺牲的第 k* 名定。
+        两种情形下，成交者的报价都影响不了自己的成交价 —— 于是「怎么报价」这个问题，
+        只剩下一个理性答案：如实报。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ §4 验证 ═══════════════ -->
+<section id="verify">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">04 · 验证</div>
+      <h2>不是「大概成立」，是穷举验证过 695,264 次</h2>
+      <p class="lead">
+        机制的正确性不靠直觉背书。测试直接对<b>生产代码</b> clearMarket 函数做穷举 ——
+        不是测试专用副本，否则验证的就不是真正上线的那份代码。
+      </p>
+    </div>
+
+    <div class="verify-kpis reveal">
+      <div class="card vkpi ok-line">
+        <div class="vt">DSIC 穷举</div>
+        <div class="vv" style="color:var(--ok)">0<small>违反</small></div>
+        <div class="vd">695,264 次检验<br>含并列价 / 零值 / 非对称网格</div>
+      </div>
+      <div class="card vkpi ok-line">
+        <div class="vt">个体理性 IR</div>
+        <div class="vv" style="color:var(--ok)">15,625<small>情形全过</small></div>
+        <div class="vd">成交买方付款 ≤ 估值<br>成交卖方收款 ≥ 成本</div>
+      </div>
+      <div class="card vkpi ok-line">
+        <div class="vt">强预算平衡</div>
+        <div class="vv" style="color:var(--ok)">15,625<small>情形全过</small></div>
+        <div class="vd">买方总付 ≥ 卖方总收<br>分支 a 时严格相等</div>
+      </div>
+      <div class="card vkpi ok-line">
+        <div class="vt">效率损失上界</div>
+        <div class="vv" style="color:var(--ok)">≤1<small>笔 · 且紧</small></div>
+        <div class="vd">15,625 情形最大损失 1 笔<br>其中 10,052 情形确实牺牲了一笔</div>
+      </div>
+    </div>
+
+    <div class="verify-grid reveal">
+      <div class="card verify-card">
+        <h4>DSIC 穷举的六组网格</h4>
+        <div class="sub">对每组真实估值组合，穷举每个 agent 的每一种偏离报价，检验「诚实效用 ≥ 偏离效用」。</div>
+        <div class="table-wrap">
+          <table class="tbl">
+            <thead><tr><th>检验场景</th><th>检验次数</th><th>违反</th></tr></thead>
+            <tbody>
+              <tr><td class="n">网格 {1..5}，买方 ≤3 × 卖方 ≤3</td><td>61,600</td><td><span class="checkmark">0 ✓</span></td></tr>
+              <tr><td class="n">含并列价 {1,2,2,3,4}</td><td>55,440</td><td><span class="checkmark">0 ✓</span></td></tr>
+              <tr><td class="n">含 0 值 {0,1,2,3,4}</td><td>61,600</td><td><span class="checkmark">0 ✓</span></td></tr>
+              <tr><td class="n">网格 {1..5}，买方 ≤4 × 卖方 ≤4</td><td>420,000</td><td><span class="checkmark">0 ✓</span></td></tr>
+              <tr><td class="n">非对称网格 {0,1,3,7}</td><td>92,736</td><td><span class="checkmark">0 ✓</span></td></tr>
+              <tr><td class="n">连续值随机抽样</td><td>3,888</td><td><span class="checkmark">0 ✓</span></td></tr>
+              <tr style="font-weight:700"><td class="n">合计</td><td>695,264</td><td><span class="checkmark">0 ✓</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="tbl-note">此外：43/43 项测试全部通过（机制单元、边界、API 集成、信息隔离）。</div>
+      </div>
+
+      <div class="card verify-card">
+        <h4>为什么不用 VCG：一个具体的对照</h4>
+        <div class="sub">
+          VCG 机制 DSIC 且完全高效，但会产生<b>赤字、需要平台补贴</b> —— 对「交易所 + 清算所」定位不可接受。
+          测试里有一组具体情形：单笔交易即将成交，但 VCG 需要平台补贴 <b>5</b> 元。
+        </div>
+        <div class="vs-box">
+          <div class="vs-item a">
+            <div class="vname">VCG</div>
+            <div class="vnum">−5</div>
+            <div class="vsub">平台补贴<br>赤字运行</div>
+          </div>
+          <div class="vs-mid">vs</div>
+          <div class="vs-item b">
+            <div class="vname">McAfee（本实现）</div>
+            <div class="vnum">0</div>
+            <div class="vsub">放弃该笔交易<br>平台支出为零</div>
+          </div>
+        </div>
+        <div class="tbl-note" style="margin-top:14px">
+          代价对比：VCG 用真金白银补贴换完全效率；McAfee 用「放弃至多一笔」换零补贴 + 全性质成立。
+          后者符合平台自身的生存约束。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ §5 系统 ═══════════════ -->
+<section id="system">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">05 · 系统</div>
+      <h2>从机制到服务：六个组件、十个端点</h2>
+      <p class="lead">
+        Node 22 + TypeScript（原生类型剥离，零构建）+ node:http（零第三方依赖）。
+        单进程内存存储，为 MVP 刻意保持轻量。
+      </p>
+    </div>
+
+    <div class="card arch-card reveal">
+      <!-- 架构图 -->
+      <svg viewBox="0 0 1080 400" role="img" aria-label="系统架构图">
+        <defs>
+          <marker id="aArr" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#b9c1d6"></path>
+          </marker>
+          <marker id="aArr2" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#8f97aa"></path>
+          </marker>
+        </defs>
+
+        <!-- Layer 1: agents -->
+        <text x="30" y="30" font-size="12" font-weight="700" fill="#8f97aa" letter-spacing="1.5">AGENT 层</text>
+        <rect x="30" y="44" width="196" height="86" rx="12" fill="#fdeef0" stroke="#f0c9cd"></rect>
+        <text x="128" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#d8434f">买方 agent</text>
+        <text x="128" y="98" text-anchor="middle" font-size="11.5" fill="#a3323b">报出评价诱发的 v</text>
+        <text x="128" y="116" text-anchor="middle" font-size="11" font-family="monospace" fill="#a3323b">X-API-Key 鉴权</text>
+        <rect x="854" y="44" width="196" height="86" rx="12" fill="#eaf1ff" stroke="#c7d8f7"></rect>
+        <text x="952" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#2563eb">卖方 agent</text>
+        <text x="952" y="98" text-anchor="middle" font-size="11.5" fill="#1e4fbb">报出真实成本 c</text>
+        <text x="952" y="116" text-anchor="middle" font-size="11" font-family="monospace" fill="#1e4fbb">X-API-Key 鉴权</text>
+
+        <!-- 箭头到 HTTP 层 -->
+        <line x1="128" y1="130" x2="128" y2="168" stroke="#b9c1d6" stroke-width="1.6" marker-end="url(#aArr)"></line>
+        <line x1="952" y1="130" x2="952" y2="168" stroke="#b9c1d6" stroke-width="1.6" marker-end="url(#aArr)"></line>
+
+        <!-- Layer 2: HTTP -->
+        <rect x="30" y="172" width="1020" height="52" rx="11" fill="#f2f4fa" stroke="#dde2ee"></rect>
+        <text x="540" y="203" text-anchor="middle" font-size="13.5" font-weight="700" fill="#444f6e">HTTP API 层 · node:http 零依赖路由 · JSON + 结构化错误码 · CORS</text>
+
+        <!-- Layer 3: engine container -->
+        <rect x="30" y="248" width="1020" height="118" rx="16" fill="#fbfcff" stroke="#dde2ee"></rect>
+        <text x="52" y="276" font-size="12" font-weight="700" fill="#8f97aa" letter-spacing="1.5">市场引擎（单进程内存）</text>
+
+        <rect x="48" y="290" width="152" height="58" rx="10" fill="#fff" stroke="#c9d5f2"></rect>
+        <text x="124" y="313" text-anchor="middle" font-size="12.5" font-weight="700" fill="#3b4cca">注册与鉴权</text>
+        <text x="124" y="332" text-anchor="middle" font-size="10.5" fill="#5c6579">身份 / 角色 / apiKey</text>
+
+        <rect x="216" y="290" width="152" height="58" rx="10" fill="#fff" stroke="#c9d5f2"></rect>
+        <text x="292" y="313" text-anchor="middle" font-size="12.5" font-weight="700" fill="#3b4cca">轮次与报价</text>
+        <text x="292" y="332" text-anchor="middle" font-size="10.5" fill="#5c6579">开市 / 收单 / 覆盖</text>
+
+        <rect x="384" y="282" width="176" height="74" rx="10" fill="#fdf6e3" stroke="#e8d9ac" stroke-width="1.6"></rect>
+        <text x="472" y="308" text-anchor="middle" font-size="13" font-weight="800" fill="#b7791f">出清引擎</text>
+        <text x="472" y="326" text-anchor="middle" font-size="10.5" fill="#8a6a1c">McAfee 1992 · 纯函数</text>
+        <text x="472" y="343" text-anchor="middle" font-size="10.5" font-family="monospace" fill="#8a6a1c">clearMarket()</text>
+
+        <rect x="576" y="290" width="152" height="58" rx="10" fill="#fff" stroke="#c9d5f2"></rect>
+        <text x="652" y="313" text-anchor="middle" font-size="12.5" font-weight="700" fill="#3b4cca">结算（模拟）</text>
+        <text x="652" y="332" text-anchor="middle" font-size="10.5" fill="#5c6579">成交 / 托管 / 平台价差</text>
+
+        <rect x="744" y="290" width="140" height="58" rx="10" fill="#fff" stroke="#c9d5f2"></rect>
+        <text x="814" y="313" text-anchor="middle" font-size="12.5" font-weight="700" fill="#3b4cca">声誉</text>
+        <text x="814" y="332" text-anchor="middle" font-size="10.5" fill="#5c6579">履约历史 · 信号</text>
+
+        <rect x="900" y="290" width="132" height="58" rx="10" fill="#fff" stroke="#c9d5f2"></rect>
+        <text x="966" y="313" text-anchor="middle" font-size="12.5" font-weight="700" fill="#3b4cca">行情数据</text>
+        <text x="966" y="332" text-anchor="middle" font-size="10.5" fill="#5c6579">价序 / 量 / 价差</text>
+
+        <!-- arrows inside engine -->
+        <line x1="200" y1="319" x2="212" y2="319" stroke="#b9c1d6" stroke-width="1.5" marker-end="url(#aArr2)"></line>
+        <line x1="368" y1="319" x2="380" y2="319" stroke="#b9c1d6" stroke-width="1.5" marker-end="url(#aArr2)"></line>
+        <line x1="560" y1="319" x2="572" y2="319" stroke="#b9c1d6" stroke-width="1.5" marker-end="url(#aArr2)"></line>
+        <line x1="728" y1="319" x2="740" y2="319" stroke="#b9c1d6" stroke-width="1.5" marker-end="url(#aArr2)"></line>
+        <line x1="884" y1="319" x2="896" y2="319" stroke="#b9c1d6" stroke-width="1.5" marker-end="url(#aArr2)"></line>
+
+        <!-- output arrow -->
+        <line x1="540" y1="366" x2="540" y2="386" stroke="#b9c1d6" stroke-width="1.5" marker-end="url(#aArr2)"></line>
+        <text x="540" y="398" text-anchor="middle" font-size="11" fill="#8f97aa">对外：聚合行情（出清价序列 / 成交量 / 价差）· 按角色裁剪的私密回执</text>
+
+        <!-- isolation note -->
+        <rect x="700" y="44" width="128" height="86" rx="12" fill="#f3ecff" stroke="#d9c6f7"></rect>
+        <text x="764" y="72" text-anchor="middle" font-size="12" font-weight="700" fill="#7c3aed">信息隔离</text>
+        <text x="764" y="92" text-anchor="middle" font-size="10.5" fill="#5b3a9e">他人报价绝不外泄</text>
+        <text x="764" y="110" text-anchor="middle" font-size="10.5" fill="#5b3a9e">只公开聚合信息</text>
+        <line x1="698" y1="87" x2="430" y2="87" stroke="#d9c6f7" stroke-width="1.4" stroke-dasharray="4 4"></line>
+      </svg>
+      <div class="api-note" style="margin-top:4px">
+        引擎不暴露任何单个 agent 的报价；`GET /rounds/:id/result` 按调用者角色裁剪 —— 你只能看到「自己是否成交、成交价多少」，看不到别人的数字。
+      </div>
+    </div>
+
+    <div class="sys-grid reveal">
+      <div class="card sys-card">
+        <h4>十分钟上手：一轮完整交易的 curl 流程</h4>
+        <div class="codeblock"><span class="c"># 启动（需要 Node ≥ 22.6，零依赖）</span>
+<span class="g">$</span> node src/index.ts
+<span class="c"># -> http://127.0.0.1:8787</span>
+
+<span class="c"># 1. 注册：1 个买方 + 1 个卖方</span>
+<span class="g">$</span> curl -s -X POST localhost:8787/agents \
+    -d '{"role":"buyer","name":"alpha"}'
+<span class="c"># -> { "agentId": "ag_...", "apiKey": "sk_..." }</span>
+
+<span class="c"># 2. 开市：创建轮次</span>
+<span class="g">$</span> curl -s -X POST localhost:8787/rounds \
+    -d '{"roundId":"r-001"}'
+
+<span class="c"># 3. 报价（买方报出价 / 卖方报要价）</span>
+<span class="g">$</span> curl -s -X POST localhost:8787/rounds/r-001/bids \
+    -H <span class="y">"X-API-Key: sk_..."</span> -d '{"value":42,"quantity":1}'
+<span class="g">$</span> curl -s -X POST localhost:8787/rounds/r-001/asks \
+    -H <span class="y">"X-API-Key: sk_..."</span> -d '{"cost":30,"quantity":1}'
+
+<span class="c"># 4. 出清 + 查结果 + 行情</span>
+<span class="g">$</span> curl -s -X POST localhost:8787/rounds/r-001/clear
+<span class="g">$</span> curl -s localhost:8787/rounds/r-001/result -H <span class="y">"X-API-Key: sk_..."</span>
+<span class="g">$</span> curl -s localhost:8787/market-data</div>
+        <div class="api-note">
+          错误统一为 <span class="mono">{ error: { code, message } }</span> + 明确的 HTTP 状态码（401/403/404/409/400）。
+        </div>
+      </div>
+
+      <div class="card sys-card">
+        <h4>端点一览</h4>
+        <div class="table-wrap">
+          <table class="tbl">
+            <thead><tr><th>方法</th><th>路径</th><th>鉴权</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td>POST</td><td class="mono">/agents</td><td class="n">否</td><td class="n">注册，发 apiKey</td></tr>
+              <tr><td>POST</td><td class="mono">/rounds</td><td class="n">否</td><td class="n">开市</td></tr>
+              <tr><td>POST</td><td class="mono">/rounds/:id/bids</td><td class="n">买方</td><td class="n">提交出价</td></tr>
+              <tr><td>POST</td><td class="mono">/rounds/:id/asks</td><td class="n">卖方</td><td class="n">提交要价</td></tr>
+              <tr><td>POST</td><td class="mono">/rounds/:id/clear</td><td class="n">否</td><td class="n">轮末出清</td></tr>
+              <tr><td>GET</td><td class="mono">/rounds/:id/result</td><td class="n">是</td><td class="n">按角色裁剪的结果</td></tr>
+              <tr><td>GET</td><td class="mono">/market-data</td><td class="n">否</td><td class="n">聚合行情</td></tr>
+              <tr><td>GET</td><td class="mono">/agents/:id/reputation</td><td class="n">是</td><td class="n">声誉分（不进定价）</td></tr>
+              <tr><td>GET</td><td class="mono">/health</td><td class="n">否</td><td class="n">健康检查</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="tbl-note">
+          三条设计红线：<b>①</b> 他人报价绝不披露，只公开聚合数据；
+          <b>②</b> 声誉只作信号，绝不进入定价公式（一旦进入，操纵声誉就能获利，DSIC 立碎）；
+          <b>③</b> 周期性出清，不做连续撮合（连续撮合不具占优策略真话性质）。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ §6 发现 ═══════════════ -->
+<section id="finding">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">06 · 工程发现</div>
+      <h2>一个差点写错的边界：两种「McAfee」并不等价</h2>
+      <p class="lead">
+        查证 McAfee (1992) 时会遇到两种流传较广的边界处理写法。它们看着只差一行代码，
+        但其中一种会<b>悄悄破坏 DSIC</b>。这是本项目通过穷举对照亲手实锤的发现。
+      </p>
+    </div>
+
+    <div class="finding-hero reveal">
+      <div class="fh-text">
+        <h3>差别在哪一行？</h3>
+        <p>
+          <b>变体 A</b>：当第 k*+1 位不存在时，用「人工上下界」（买方补 0、卖方补 1）凑一个 p0 照常定价。<br>
+          <b>变体 B</b>：分支 a 必须满足「至少 k*+1 个买方且 k*+1 个卖方」；缺位则退回分支 b，牺牲边际交易。
+        </p>
+        <p>
+          穷举对照（各 20,900 次检验）：变体 A 出现 <span class="xmark">42 个反例</span>，
+          变体 B <span class="checkmark">0 违反</span>。反例长这样：
+        </p>
+        <p style="font-family:var(--mono);font-size:13.5px;background:#fafbfe;border:1px solid var(--line2);border-radius:10px;padding:11px 14px;color:#444f6e">
+          市场：买方 [3, 4]、卖方 [1]。<br>
+          真值 3 的买方<b>如实报 3</b> → 排序在 4 之后，拿不到唯一席位 → 效用 <b>0</b><br>
+          改口<b>虚报 4</b> → 并列第一、借补位定价成交 → 效用 <b>+0.5</b>
+        </p>
+        <p>
+          诚实反而更差 —— DSIC 就是这样被一行「补位」悄悄破坏的。
+          <b>本实现采用变体 B。</b>
+        </p>
+      </div>
+      <div>
+        <div class="counter-card">
+          <div class="cc-head">反例里的效用对照（变体 A）</div>
+          <div class="cc-body">
+            <div class="cc-row">
+              <span class="cc-lab">如实报 3</span>
+              <div class="cc-bar honest" style="width:64px">0.0</div>
+              <span style="color:var(--ink3);font-size:12.5px">未成交，白干</span>
+            </div>
+            <div class="cc-row">
+              <span class="cc-lab">虚报 4</span>
+              <div class="cc-bar lie" style="width:112px">+0.5</div>
+              <span style="color:var(--ink3);font-size:12.5px">挤进席位，赚了</span>
+            </div>
+          </div>
+          <div class="cc-foot">
+            这就是「诚实不是最优」的直接证据。根因：补位定价让成交者的价格
+            <b>开始依赖他自己报的数</b> —— 而 DSIC 恰恰要求价格与成交者自己的报价无关。
+          </div>
+        </div>
+        <div class="counter-card" style="margin-top:14px">
+          <div class="cc-head">两种变体的穷举对照</div>
+          <div class="cc-body" style="padding:10px 16px 12px">
+            <div class="table-wrap">
+              <table class="tbl">
+                <thead><tr><th>变体</th><th>检验</th><th>DSIC 违反</th></tr></thead>
+                <tbody>
+                  <tr><td class="n">A · 人工上下界补位</td><td>20,900</td><td><span class="xmark">42</span></td></tr>
+                  <tr><td class="n">B · 需 k*+1 双方在册</td><td>20,900</td><td><span class="checkmark">0</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="cc-foot">留档于 <span class="mono" style="font-size:12px">docs/verification/</span>，可复现。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ═══════════════ 页脚 ═══════════════ -->
+<footer>
+  <div class="wrap">
+    <div>
+      <h5>Agent 市场 · 机制设计实验</h5>
+      <p class="ref">
+        一个供买方 / 卖方 agent 接入的双向拍卖撮合平台：<br>
+        用 McAfee (1992) 占优策略机制，让如实上报成为占优策略，<br>
+        从而产生真实可信的价格信号。单文件汇报页 · 内嵌机制与源码同构。
+      </p>
+      <div class="foot-badges">
+        <span class="chip">695,264 次穷举</span>
+        <span class="chip">43/43 测试</span>
+        <span class="chip">零依赖</span>
+        <span class="chip">Node 22 · TS strip-only</span>
+      </div>
+    </div>
+    <div>
+      <h5>四条性质</h5>
+      <ul>
+        <li><b>DSIC</b> · 说真话是占优策略</li>
+        <li><b>IR</b> · 不强迫亏本交易</li>
+        <li><b>SBB</b> · 平台不贴钱</li>
+        <li><b>效率</b> · 至多牺牲一笔，上界紧</li>
+      </ul>
+    </div>
+    <div>
+      <h5>参考文献</h5>
+      <ul class="ref">
+        <li>R. P. McAfee, “Dominant Strategy Double Auctions”, <i>JET</i>, 1992.</li>
+        <li>Myerson &amp; Satterthwaite, “Efficient Mechanisms for Bilateral Trading”, <i>JET</i>, 1983.</li>
+        <li>Segal-Halevi et al., “SBBA: a Strongly-Budget-Balanced Double-Auction Mechanism”, arXiv:1607.05139.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>report.html · 内嵌出清引擎与 src/mechanism/mcafee.ts 同构（已交叉验证）</span>
+    <span>本页所有数字均来自真实测试与仿真输出</span>
+  </div>
+</footer>
+
+<script>
+/* ================================================================
+   PART 1 · 机制核心 —— 与 src/mechanism/mcafee.ts 同构的 JS 实现
+   ================================================================ */
+function clearMarket(bids, asks) {
+  const result = {
+    efficientQuantity: 0, tradedQuantity: 0, tradeCount: 0,
+    branch: "none", fills: [], clearingPriceBuyer: null,
+    clearingPriceSeller: null, efficiencyLoss: 0,
+    rankedBuyers: [], rankedSellers: [], sacrificedUnit: null, p0: null,
+  };
+  if (!bids.length || !asks.length) return result;
+
+  const vb = bids.map(b => ({...b})).sort((x, y) => (y.value - x.value) || x.agentId.localeCompare(y.agentId));
+  const sa = asks.map(a => ({...a})).sort((x, y) => (x.cost - y.cost) || x.agentId.localeCompare(y.agentId));
+  result.rankedBuyers = vb;
+  result.rankedSellers = sa;
+
+  const units = [], sunits = [];
+  for (const b of vb) for (let i = 0; i < b.quantity; i++) units.push({ ...b, price: b.value });
+  for (const a of sa) for (let i = 0; i < a.quantity; i++) sunits.push({ ...a, price: a.cost });
+
+  let k = 0;
+  const kMax = Math.min(units.length, sunits.length);
+  while (k < kMax && units[k].price >= sunits[k].price) k++;
+  result.efficientQuantity = k;
+  if (k === 0) return result;
+
+  const vKm1 = units[k], cKm1 = sunits[k];
+  const canUseBreakeven = k < units.length && k < sunits.length;
+  let buyerPrice, sellerPrice, tradedUnits, branch;
+
+  if (canUseBreakeven) {
+    const p0 = (vKm1.price + cKm1.price) / 2;
+    result.p0 = p0;
+    if (sunits[k - 1].price <= p0 && p0 <= units[k - 1].price) {
+      buyerPrice = sellerPrice = p0; tradedUnits = k; branch = "a";
+    } else {
+      buyerPrice = units[k - 1].price; sellerPrice = sunits[k - 1].price;
+      tradedUnits = k - 1; branch = "b";
+    }
+  } else {
+    buyerPrice = units[k - 1].price; sellerPrice = sunits[k - 1].price;
+    tradedUnits = k - 1; branch = "b";
+  }
+
+  result.branch = branch;
+  if (tradedUnits <= 0) {
+    result.efficiencyLoss = k;
+    result.sacrificedUnit = k;
+    return result;
+  }
+
+  // fills：逐单位配对（与 TS 版 assignFills 等价）
+  const fills = [];
+  let bi = 0, si = 0, remaining = tradedUnits;
+  const bUsed = new Map(), sUsed = new Map();
+  while (remaining > 0 && bi < units.length && si < sunits.length) {
+    const b = units[bi], s = sunits[si];
+    const bDone = bUsed.get(b.agentId) ?? 0, sDone = sUsed.get(s.agentId) ?? 0;
+    if (bDone >= b.quantity) { bi++; continue; }
+    if (sDone >= s.quantity) { si++; continue; }
+    const chunk = Math.min(b.quantity - bDone, s.quantity - sDone, remaining);
+    fills.push({ buyerAgentId: b.agentId, sellerAgentId: s.agentId, quantity: chunk, buyerPrice, sellerPrice });
+    bUsed.set(b.agentId, bDone + chunk); sUsed.set(s.agentId, sDone + chunk);
+    remaining -= chunk;
+  }
+  result.fills = fills;
+  result.tradedQuantity = tradedUnits;
+  result.tradeCount = fills.length;
+  result.clearingPriceBuyer = buyerPrice;
+  result.clearingPriceSeller = sellerPrice;
+  result.efficiencyLoss = result.efficientQuantity - tradedUnits;
+  if (branch === "b") result.sacrificedUnit = k;
+  return result;
+}
+
+/* ================================================================
+   PART 2 · §2 机制交互：滑块 / 预设 / SVG 阶梯图 / 分步动画
+   ================================================================ */
+(function () {
+  "use strict";
+
+  const W = 900, H = 452, SLOTS = 3, MAX_P = 72;
+  const PAD = { l: 84, r: 30, t: 46, b: 64 };
+  const AX = i => PAD.l + (i * (W - PAD.l - PAD.r)) / SLOTS;
+  const AY = p => PAD.t + (1 - p / MAX_P) * (H - PAD.t - PAD.b);
+  const PLOTH = H - PAD.t - PAD.b;
+  const fmtn = n => (Number.isInteger(n) ? String(n) : String(Math.round(n * 1000) / 1000));
+
+  const C = {
+    buy: "#d8434f", sell: "#2563eb", price: "#b7791f", spread: "#7c3aed",
+    ok: "#0f9960", ink3: "#8f97aa", grid: "#eef0f6", axis: "#d9dee9",
+    bandOk: "#e8f7f0", bandGray: "#f1f2f7", grayX: "#a3a9bb",
+  };
+
+  const state = { bids: [30, 26, 19], asks: [8, 17, 40], step: 4 };
+  const PRESETS = [
+    { bids: [30, 26, 19], asks: [8, 17, 40] },
+    { bids: [50, 40, 30], asks: [10, 20, 45] },
+    { bids: [15, 12, 8], asks: [30, 42, 55] },
+  ];
+
+  const svg = document.getElementById("mechSvg");
+  const demoBtn = document.getElementById("demoBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  const mkBids = () => state.bids.map((v, i) => ({ agentId: "b" + (i + 1), value: v, quantity: 1 }));
+  const mkAsks = () => state.asks.map((c, i) => ({ agentId: "s" + (i + 1), cost: c, quantity: 1 }));
+
+  /* ---------------- SVG 构建 ---------------- */
+  function buildSvg(res) {
+    const k = res.efficientQuantity;
+    const t = res.tradedQuantity;
+    const v = res.rankedBuyers.map(x => x.value);
+    const c = res.rankedSellers.map(x => x.cost);
+    const m = v.length, n = c.length;
+    const s = [];
+
+    /* ── 基础：网格 ── */
+    for (let p = 0; p <= 70; p += 10) {
+      s.push(`<line x1="${PAD.l}" y1="${AY(p)}" x2="${W - PAD.r}" y2="${AY(p)}" stroke="${p === 0 ? C.axis : C.grid}" stroke-width="1"/>`);
+      s.push(`<text x="${PAD.l - 12}" y="${AY(p) + 4}" text-anchor="end" font-size="11" fill="${C.ink3}" font-family="monospace">${p}</text>`);
+    }
+    s.push(`<text x="${PAD.l - 12}" y="${PAD.t - 20}" text-anchor="end" font-size="10.5" fill="${C.ink3}">每单位价格</text>`);
+
+    /* ── 单位格标签（X 轴） ── */
+    for (let i = 0; i < SLOTS; i++) {
+      const cx = (AX(i) + AX(i + 1)) / 2;
+      s.push(`<text x="${cx}" y="${AY(0) + 22}" text-anchor="middle" font-size="12" fill="#b6bdcd">第 ${i + 1} 笔</text>`);
+      s.push(`<text x="${cx}" y="${AY(0) + 40}" text-anchor="middle" font-size="10.5" fill="#cdd3e0" font-family="monospace">v(${i + 1}) ↔ c(${i + 1})</text>`);
+    }
+    s.push(`<text x="${W - PAD.r}" y="${AY(0) + 22}" text-anchor="end" font-size="10.5" fill="${C.ink3}">（按名次对齐 · 名次由报价排出）</text>`);
+
+    /* ── step2 组：k* 与完全效率区间 ── */
+    let g2 = "";
+    if (k > 0) {
+      g2 += `<rect x="${AX(0)}" y="${PAD.t}" width="${AX(k) - AX(0)}" height="${PLOTH}" fill="${C.bandOk}" opacity="0.55"/>`;
+      g2 += `<line x1="${AX(k)}" y1="${PAD.t}" x2="${AX(k)}" y2="${AY(0)}" stroke="${C.price}" stroke-width="1.6" stroke-dasharray="6 5"/>`;
+      g2 += `<text x="${AX(k) + 8}" y="${PAD.t + 16}" font-size="13" font-weight="700" fill="${C.price}" font-family="monospace">k* = ${k}</text>`;
+      g2 += `<text x="${AX(k) + 8}" y="${PAD.t + 33}" font-size="10.5" fill="#a08648">完全效率可成交 ${k} 笔</text>`;
+    } else {
+      g2 += `<text x="${W / 2}" y="${PAD.t + 60}" text-anchor="middle" font-size="17" font-weight="700" fill="${C.ink3}">k* = 0 · 本轮无有效交易（最高买价 &lt; 最低卖价）</text>`;
+    }
+    if (g2) s.push(`<g class="fx anim-el${state.step >= 2 ? "" : " fade-hidden"}" data-minstep="2">${g2}</g>`);
+
+    /* ── 阶梯 ── */
+    let pathB = `M ${AX(0)},${AY(v[0])}`;
+    for (let i = 0; i < m; i++) {
+      pathB += ` L ${AX(i + 1)},${AY(v[i])}`;
+      if (i + 1 < m) pathB += ` L ${AX(i + 1)},${AY(v[i + 1])}`;
+    }
+    s.push(`<path d="${pathB}" fill="none" stroke="${C.buy}" stroke-width="2.6" stroke-linejoin="round"/>`);
+    let pathS = `M ${AX(0)},${AY(c[0])}`;
+    for (let i = 0; i < n; i++) {
+      pathS += ` L ${AX(i + 1)},${AY(c[i])}`;
+      if (i + 1 < n) pathS += ` L ${AX(i + 1)},${AY(c[i + 1])}`;
+    }
+    s.push(`<path d="${pathS}" fill="none" stroke="${C.sell}" stroke-width="2.6" stroke-linejoin="round"/>`);
+
+    /* ── 报价点与标签 ── */
+    for (let i = 0; i < m; i++) {
+      const cx = (AX(i) + AX(i + 1)) / 2;
+      const cy = AY(v[i]);
+      s.push(`<circle cx="${cx}" cy="${cy}" r="4.5" fill="#fff" stroke="${C.buy}" stroke-width="2.2"/>`);
+      s.push(`<text x="${cx}" y="${cy - 11}" text-anchor="middle" font-size="12.5" font-weight="700" fill="${C.buy}" font-family="monospace">b${i + 1} · ${fmtn(v[i])}</text>`);
+    }
+    for (let i = 0; i < n; i++) {
+      const cx = (AX(i) + AX(i + 1)) / 2;
+      const cy = AY(c[i]);
+      s.push(`<circle cx="${cx}" cy="${cy}" r="4.5" fill="#fff" stroke="${C.sell}" stroke-width="2.2"/>`);
+      s.push(`<text x="${cx}" y="${cy + 20}" text-anchor="middle" font-size="12.5" font-weight="700" fill="${C.sell}" font-family="monospace">s${i + 1} · ${fmtn(c[i])}</text>`);
+    }
+
+    /* ── step3 组：定价 ── */
+    let g3 = "";
+    if (k > 0 && res.branch === "a") {
+      const p0 = res.p0;
+      g3 += `<line x1="${AX(0)}" y1="${AY(p0)}" x2="${AX(k)}" y2="${AY(p0)}" stroke="${C.price}" stroke-width="2.6"/>`;
+      g3 += `<rect x="${AX(0)}" y="${AY(p0) - 11}" width="${AX(k) - AX(0)}" height="22" fill="${C.price}" opacity="0.07"/>`;
+      g3 += `<text x="${(AX(0) + AX(k)) / 2}" y="${AY(p0) - 12}" text-anchor="middle" font-size="12.5" font-weight="700" fill="${C.price}" font-family="monospace">统一价 p₀ = ${fmtn(p0)}</text>`;
+      if (k < m && k < n) {
+        const cxm = (AX(k) + AX(k + 1)) / 2;
+        g3 += `<circle cx="${cxm}" cy="${AY(v[k])}" r="7" fill="none" stroke="${C.price}" stroke-width="2" stroke-dasharray="3 2"/>`;
+        g3 += `<circle cx="${cxm}" cy="${AY(c[k])}" r="7" fill="none" stroke="${C.price}" stroke-width="2" stroke-dasharray="3 2"/>`;
+      }
+    }
+    if (k > 0 && res.branch === "b") {
+      if (t > 0) {
+        const xr = AX(k - 1);
+        const vy = AY(v[k - 1]), cy2 = AY(c[k - 1]);
+        const midy = (vy + cy2) / 2;
+        g3 += `<line x1="${AX(0)}" y1="${vy}" x2="${xr}" y2="${vy}" stroke="${C.buy}" stroke-width="2" stroke-dasharray="6 4"/>`;
+        g3 += `<line x1="${AX(0)}" y1="${cy2}" x2="${xr}" y2="${cy2}" stroke="${C.sell}" stroke-width="2" stroke-dasharray="6 4"/>`;
+        g3 += `<rect x="${AX(0)}" y="${vy}" width="${xr - AX(0)}" height="${cy2 - vy}" fill="${C.spread}" opacity="0.12"/>`;
+        const midx = (AX(0) + xr) / 2;
+        g3 += `<text x="${midx}" y="${midy - 5}" text-anchor="middle" font-size="12" font-weight="700" fill="${C.buy}" font-family="monospace">买方付 v(${k}) = ${fmtn(v[k - 1])}</text>`;
+        g3 += `<text x="${midx}" y="${midy + 13}" text-anchor="middle" font-size="12" font-weight="700" fill="${C.sell}" font-family="monospace">卖方收 c(${k}) = ${fmtn(c[k - 1])} · 价差 ${fmtn(v[k - 1] - c[k - 1])} 归平台</text>`;
+      }
+      const sx1 = AX(k - 1), sx2 = AX(k), scy = PAD.t + PLOTH / 2;
+      g3 += `<rect x="${sx1}" y="${PAD.t}" width="${sx2 - sx1}" height="${PLOTH}" fill="${C.bandGray}" opacity="0.85"/>`;
+      g3 += `<line x1="${(sx1 + sx2) / 2 - 17}" y1="${scy - 17}" x2="${(sx1 + sx2) / 2 + 17}" y2="${scy + 17}" stroke="${C.grayX}" stroke-width="2.6"/>`;
+      g3 += `<line x1="${(sx1 + sx2) / 2 + 17}" y1="${scy - 17}" x2="${(sx1 + sx2) / 2 - 17}" y2="${scy + 17}" stroke="${C.grayX}" stroke-width="2.6"/>`;
+      g3 += `<text x="${(sx1 + sx2) / 2}" y="${scy + 40}" text-anchor="middle" font-size="12" font-weight="700" fill="${C.ink3}">第 ${k} 笔 · 被牺牲</text>`;
+      if (t === 0) {
+        g3 += `<text x="${(sx1 + sx2) / 2}" y="${scy + 60}" text-anchor="middle" font-size="11" fill="${C.ink3}">（唯一有效交易为保 DSIC 主动放弃）</text>`;
+      }
+    }
+    if (g3) s.push(`<g class="fx anim-el${state.step >= 3 ? "" : " fade-hidden"}" data-minstep="3">${g3}</g>`);
+
+    /* ── step4 组：结算汇总 ── */
+    let g4 = "";
+    if (k > 0 && t > 0) {
+      const buyerTotal = t * res.clearingPriceBuyer;
+      const sellerTotal = t * res.clearingPriceSeller;
+      const spread = buyerTotal - sellerTotal;
+      g4 += `<text x="${W / 2}" y="26" text-anchor="middle" font-size="13" font-weight="700" fill="${C.ok}">结算：成交 ${t} 笔 · 买方总付 ${fmtn(buyerTotal)} ≥ 卖方总收 ${fmtn(sellerTotal)}${spread > 0 ? ` · 平台留存 ${fmtn(spread)}` : " · 价差为 0"}</text>`;
+    } else if (k > 0 && t === 0) {
+      g4 += `<text x="${W / 2}" y="26" text-anchor="middle" font-size="13" font-weight="700" fill="${C.ok}">结算：成交 0 笔 · 无资金流动 · 平台零支出</text>`;
+    } else {
+      g4 += `<text x="${W / 2}" y="26" text-anchor="middle" font-size="13" font-weight="700" fill="${C.ok}">结算：无成交 · 无资金流动</text>`;
+    }
+    s.push(`<g class="fx anim-el${state.step >= 4 ? "" : " fade-hidden"}" data-minstep="4">${g4}</g>`);
+
+    /* ── 底部图例 ── */
+    const ly = H - 16;
+    let lx = PAD.l;
+    const legend = [
+      { c: C.buy, t: "买方出价（降序）", dash: false },
+      { c: C.sell, t: "卖方要价（升序）", dash: false },
+      { c: C.price, t: "出清价", dash: true },
+      { c: C.spread, t: "平台价差", dash: false, rect: true },
+    ];
+    if (k > 0 && res.branch === "a" && k < m && k < n) {
+      legend.push({ c: C.price, t: "定价钥匙（第 k*+1 名）", dash: true, circle: true });
+    }
+    for (const g of legend) {
+      if (g.rect) {
+        s.push(`<rect x="${lx}" y="${ly - 9}" width="20" height="10" rx="2" fill="${g.c}" opacity="0.35"/>`);
+      } else if (g.circle) {
+        s.push(`<circle cx="${lx + 10}" cy="${ly - 4}" r="5.5" fill="none" stroke="${g.c}" stroke-width="1.8" stroke-dasharray="3 2"/>`);
+      } else {
+        s.push(`<line x1="${lx}" y1="${ly - 4}" x2="${lx + 22}" y2="${ly - 4}" stroke="${g.c}" stroke-width="2.4"${g.dash ? ' stroke-dasharray="5 4"' : ""}/>`);
+      }
+      s.push(`<text x="${lx + 28}" y="${ly}" font-size="11" fill="#7a8399">${g.t}</text>`);
+      lx += 150;
+    }
+
+    svg.innerHTML = s.join("");
+  }
+
+  /* ---------------- 指标 / 文案 ---------------- */
+  function updateMetrics(res) {
+    const k = res.efficientQuantity, t = res.tradedQuantity;
+    document.getElementById("mK").textContent = k;
+    document.getElementById("mTraded").textContent = t;
+    const note = document.getElementById("mTradedNote");
+    const bp = document.getElementById("mBuyPrice"), sp = document.getElementById("mSellPrice");
+    const mn = document.getElementById("mPriceNote");
+    const ms = document.getElementById("mSpread"), msn = document.getElementById("mSpreadNote");
+    const ml = document.getElementById("mLoss");
+    ml.textContent = res.efficiencyLoss;
+
+    if (res.branch === "a") {
+      note.textContent = "分支 a · 全部按统一价成交";
+      bp.textContent = fmtn(res.clearingPriceBuyer);
+      sp.textContent = fmtn(res.clearingPriceSeller);
+      ms.textContent = "0";
+      msn.textContent = "买卖价格相等 · 无价差";
+      mn.textContent = "每单位 · 统一价";
+    } else if (res.branch === "b") {
+      note.textContent = t > 0 ? `分支 b · 牺牲第 ${k} 笔` : "分支 b · 唯一一笔被牺牲";
+      bp.textContent = t > 0 ? fmtn(res.clearingPriceBuyer) : "—";
+      sp.textContent = t > 0 ? fmtn(res.clearingPriceSeller) : "—";
+      ms.textContent = t > 0 ? fmtn(res.clearingPriceBuyer - res.clearingPriceSeller) : "0";
+      msn.textContent = t > 0 ? `= ${fmtn(res.clearingPriceBuyer)} − ${fmtn(res.clearingPriceSeller)} · 只赚不贴` : "无成交 · 平台零支出";
+      mn.textContent = "每单位 · 双边定价";
+    } else {
+      note.textContent = "无有效交易";
+      bp.textContent = "—"; sp.textContent = "—";
+      ms.textContent = "—";
+      msn.textContent = "本轮无资金流动";
+      mn.textContent = "—";
+    }
+  }
+
+  const STEP_TEXT = {
+    1: () => "第 1 步 · 报价就位：买方出价降序、卖方要价升序，名次排定。",
+    2: (r) => r.efficientQuantity > 0
+      ? `第 2 步 · 找 k*：v(i) ≥ c(i) 成立到第 ${r.efficientQuantity} 笔 —— 完全效率下最多能成交 ${r.efficientQuantity} 笔。`
+      : "第 2 步 · 求 k*：最高买价已低于最低卖价，k* = 0，无交易可能。",
+    3: (r) => {
+      if (r.efficientQuantity === 0) return "第 3 步 · 定价：无有效交易，跳过。";
+      if (r.branch === "a") return `第 3 步 · 定价：用第 k*+1 名（未成交）的报价算中间价 p₀ = ${fmtn(r.p0)}，落在允许区间内 → 前 ${r.efficientQuantity} 笔统一按 p₀ 成交。`;
+      if (r.tradedQuantity === 0) return "第 3 步 · 定价：第 k*+1 名缺位，退回分支 b —— 为保 DSIC，唯一有效的一笔被牺牲。";
+      return `第 3 步 · 定价：以被牺牲的第 ${r.efficientQuantity} 名的报价定价 —— 买方付 ${fmtn(r.clearingPriceBuyer)}、卖方收 ${fmtn(r.clearingPriceSeller)}，价差归平台。价格与成交者自己的报价无关。`;
+    },
+    4: (r) => {
+      if (r.efficientQuantity === 0) return "第 4 步 · 结算：无成交，收工。";
+      if (r.tradedQuantity === 0) return "第 4 步 · 结算：成交 0 笔 —— 这是真实市场里为激励相容付出的代价（至多一笔）。";
+      return `第 4 步 · 结算：成交 ${r.tradedQuantity} 笔，总付 ≥ 总收，平台不贴钱。整轮结束 —— 没有任何人能看到别人的报价。`;
+    },
+  };
+
+  function updateCaption(res) {
+    document.getElementById("stepNo").textContent = `${state.step}/4`;
+    document.getElementById("stepText").innerHTML = STEP_TEXT[state.step](res);
+  }
+
+  function applyStep() {
+    const res = clearMarket(mkBids(), mkAsks());
+    svg.querySelectorAll(".fx").forEach(g => {
+      g.classList.toggle("fade-hidden", state.step < Number(g.dataset.minstep));
+    });
+    updateCaption(res);
+    demoBtn.innerHTML = state.step >= 4
+      ? '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg> 分步演示出清'
+      : "下一步 →";
+  }
+
+  function render() {
+    const res = clearMarket(mkBids(), mkAsks());
+    buildSvg(res);
+    updateMetrics(res);
+    updateCaption(res);
+    demoBtn.innerHTML = state.step >= 4
+      ? '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg> 分步演示出清'
+      : "下一步 →";
+  }
+
+  /* ---------------- 事件绑定 ---------------- */
+  for (let i = 0; i < 3; i++) {
+    const rb = document.getElementById("rb-b" + i);
+    rb.addEventListener("input", () => {
+      state.bids[i] = Number(rb.value);
+      document.getElementById("rv-b" + i).textContent = rb.value;
+      state.step = 4; render();
+    });
+    const ra = document.getElementById("rb-a" + i);
+    ra.addEventListener("input", () => {
+      state.asks[i] = Number(ra.value);
+      document.getElementById("rv-a" + i).textContent = ra.value;
+      state.step = 4; render();
+    });
+  }
+
+  document.querySelectorAll(".preset").forEach((btn, idx) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".preset").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const P = PRESETS[idx];
+      P.bids.forEach((v, j) => {
+        state.bids[j] = v;
+        document.getElementById("rb-b" + j).value = v;
+        document.getElementById("rv-b" + j).textContent = v;
+      });
+      P.asks.forEach((v, j) => {
+        state.asks[j] = v;
+        document.getElementById("rb-a" + j).value = v;
+        document.getElementById("rv-a" + j).textContent = v;
+      });
+      state.step = 4; render();
+    });
+  });
+
+  demoBtn.addEventListener("click", () => {
+    state.step = state.step >= 4 ? 1 : state.step + 1;
+    applyStep();
+  });
+  resetBtn.addEventListener("click", () => {
+    state.step = 4; render();
+  });
+
+  /* 初始渲染 */
+  state.step = 4;
+  render();
+})();
+
+/* ================================================================
+   PART 3 · §3 说真话交互：报价滑块 / 效用曲线 / 动态判定
+   ================================================================ */
+(function () {
+  "use strict";
+  const TRUE_VALUE = 30;
+  const OTHER_BIDS = [26, 19];      // b2、b3 如实报价
+  const ASKS = [8, 17, 40];         // 卖方三人如实报价
+  const f1 = x => x.toFixed(1);
+
+  /* 给一个报价，返回 b1 的真实处境 */
+  function snapshot(report) {
+    const bids = [{ agentId: "b1", value: report, quantity: 1 }].concat(
+      OTHER_BIDS.map((v, i) => ({ agentId: "b" + (i + 2), value: v, quantity: 1 }))
+    );
+    const asks = ASKS.map((c, i) => ({ agentId: "s" + (i + 1), cost: c, quantity: 1 }));
+    const res = clearMarket(bids, asks);
+    const filled = res.fills.some(f => f.buyerAgentId === "b1");
+    return {
+      traded: filled,
+      price: filled ? res.clearingPriceBuyer : null,
+      util: filled ? TRUE_VALUE - res.clearingPriceBuyer : 0,
+    };
+  }
+
+  /* ---------------- 曲线 ---------------- */
+  const W2 = 640, H2 = 384, L = 64, R = 24, T = 40, B = 58;
+  const Xr = r => L + ((r - 18) / 42) * (W2 - L - R);
+  const Yu = u => T + (1 - u / 5) * (H2 - T - B);
+
+  function renderCurve(report, snap) {
+    const s = [];
+
+    /* 网格与 Y 轴 */
+    for (let u = 0; u <= 5; u++) {
+      s.push(`<line x1="${L}" y1="${Yu(u)}" x2="${W2 - R}" y2="${Yu(u)}" stroke="${u === 0 ? "#d9dee9" : "#eef0f6"}" stroke-width="1"/>`);
+      s.push(`<text x="${L - 12}" y="${Yu(u) + 4}" text-anchor="end" font-size="11" fill="#8f97aa" font-family="monospace">${u}</text>`);
+    }
+    s.push(`<text x="${L - 12}" y="${T - 18}" text-anchor="end" font-size="11" fill="#8f97aa">真实效用</text>`);
+
+    /* 曲线阶梯 + 填充 */
+    let d = `M ${Xr(18)},${Yu(snapshot(18).util)}`;
+    let prevY = Yu(snapshot(18).util);
+    for (let r = 19; r <= 60; r++) {
+      const yy = Yu(snapshot(r).util);
+      if (yy !== prevY) {
+        d += ` L ${Xr(r)},${prevY} L ${Xr(r)},${yy}`;
+        prevY = yy;
+      }
+    }
+    d += ` L ${Xr(60)},${prevY}`;
+    s.push(`<path d="${d} L ${Xr(60)},${Yu(0)} L ${Xr(18)},${Yu(0)} Z" fill="${"#d8434f"}" opacity="0.055"/>`);
+    s.push(`<path d="${d}" fill="none" stroke="#d8434f" stroke-width="2.8"/>`);
+
+    /* 临界线：26 */
+    s.push(`<line x1="${Xr(26)}" y1="${T - 4}" x2="${Xr(26)}" y2="${Yu(0)}" stroke="#c9cfdf" stroke-width="1.4" stroke-dasharray="5 4"/>`);
+    s.push(`<text x="${Xr(26)}" y="${Yu(0) + 22}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#8f97aa" font-family="monospace">26</text>`);
+    s.push(`<text x="${Xr(26)}" y="${Yu(0) + 38}" text-anchor="middle" font-size="10.5" fill="#b6bdcd">临界（b2 的报价）</text>`);
+
+    /* 如实线：30 */
+    s.push(`<line x1="${Xr(30)}" y1="${T - 4}" x2="${Xr(30)}" y2="${Yu(0)}" stroke="#0f9960" stroke-width="1.6" stroke-dasharray="5 4"/>`);
+    s.push(`<text x="${Xr(30)}" y="${T - 12}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0f9960">如实报价 30</text>`);
+
+    /* 注释 */
+    s.push(`<text x="${Xr(18) + 6}" y="${Yu(0) - 17}" font-size="11.5" font-weight="700" fill="#a3323b">报价 &lt; 26：丢席位 · 效用 0</text>`);
+    s.push(`<text x="${Xr(30) + 30}" y="${Yu(4) - 12}" font-size="11.5" font-weight="700" fill="#0b7a4d">报价 ≥ 26：成交 · 效用 = 30 − 26 = 4</text>`);
+
+    /* 当前报价 */
+    const px = Xr(report), py = Yu(snap.util);
+    s.push(`<line x1="${px}" y1="${Yu(0)}" x2="${px}" y2="${py}" stroke="#d8434f" stroke-width="1.2" opacity="0.4"/>`);
+    s.push(`<circle cx="${px}" cy="${py}" r="7.5" fill="#fff" stroke="#d8434f" stroke-width="3"/>`);
+    s.push(`<circle cx="${px}" cy="${py}" r="2.6" fill="#d8434f"/>`);
+
+    /* X 轴刻度 */
+    for (const r of [18, 26, 30, 40, 50, 60]) {
+      s.push(`<line x1="${Xr(r)}" y1="${Yu(0)}" x2="${Xr(r)}" y2="${Yu(0) + 5}" stroke="#d9dee9" stroke-width="1.4"/>`);
+      if (r !== 26 && r !== 30) {
+        s.push(`<text x="${Xr(r)}" y="${Yu(0) + 21}" text-anchor="middle" font-size="11" fill="#8f97aa" font-family="monospace">${r}</text>`);
+      }
+    }
+    s.push(`<text x="${W2 / 2}" y="${H2 - 8}" text-anchor="middle" font-size="11.5" fill="#8f97aa">你的报价（真实价值恒为 30）</text>`);
+
+    document.getElementById("truthSvg").innerHTML = s.join("");
+  }
+
+  /* ---------------- 结果面板与判定 ---------------- */
+  function renderTruth(report) {
+    const snap = snapshot(report);
+    document.getElementById("trBid").textContent = report;
+    const tr = document.getElementById("trTraded");
+    tr.textContent = snap.traded ? "是" : "否";
+    tr.style.color = snap.traded ? "#0f9960" : "#d8434f";
+    document.getElementById("trPrice").textContent = snap.traded ? String(snap.price) : "—";
+    const tu = document.getElementById("trUtil");
+    tu.textContent = f1(snap.util);
+    tu.style.color = snap.util > 0 ? "#0f9960" : "#d8434f";
+
+    const box = document.getElementById("verdictBox");
+    let kind, html;
+    if (report < 26) {
+      kind = "bad";
+      html = `<b>压价失败。</b>报价掉出前 k 名，直接丢席位，效用 0 —— 比如实报价的 4.0 更差。`;
+    } else if (report === 30) {
+      kind = "good";
+      html = `<b>最大值。</b>如实报价拿到的效用 4.0，就是这张图上的最高点。`;
+    } else if (report < 30) {
+      kind = "neutral";
+      html = `<b>与如实持平，但没有更好。</b>你压了 ${30 - report} 元仍在席位上，效用 4.0 —— 刀尖上跳舞：再低一点（< 26）就归零。`;
+    } else {
+      kind = "neutral";
+      html = `<b>与如实持平，但没有更好。</b>抬价完全没用：成交价由没成交的 b2（26）决定，你再抬也影响不了它。`;
+    }
+    box.className = "verdict " + kind;
+    box.innerHTML = html;
+
+    renderCurve(report, snap);
+  }
+
+  /* ---------------- 对照表 ---------------- */
+  (function buildTable() {
+    const tb = document.querySelector("#truthTbl tbody");
+    const rows = [19, 21, 22, 25, 26, 28, 30, 33, 40, 60];
+    tb.innerHTML = rows.map(r => {
+      const s = snapshot(r);
+      const honest = r === 30 ? ' class="honest"' : "";
+      const label = r === 30 ? "30（如实）" : String(r);
+      return `<tr${honest}><td>${label}</td><td class="n">${s.traded ? "是" : "否"}</td><td>${s.traded ? s.price : "—"}</td><td>${f1(s.util)}</td></tr>`;
+    }).join("");
+  })();
+
+  /* ---------------- 滑块 ---------------- */
+  const slider = document.getElementById("bidSlider");
+  slider.addEventListener("input", () => renderTruth(Number(slider.value)));
+  renderTruth(Number(slider.value));
+})();
+
+/* ================================================================
+   PART 4 · 杂项：滚动进入动画（防御式：脚本异常时内容照常显示）
+   ================================================================ */
+(function () {
+  "use strict";
+  const els = Array.from(document.querySelectorAll(".reveal"));
+  els.forEach(el => el.classList.add("pre"));
+  const show = el => el.classList.remove("pre");
+  if (!("IntersectionObserver" in window)) { els.forEach(show); return; }
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { show(e.target); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.06, rootMargin: "0px 0px -4% 0px" });
+  els.forEach(el => io.observe(el));
+  /* 兜底：无论滚动与否，2.5s 后全部显示 */
+  setTimeout(() => els.forEach(show), 2500);
+})();
+</script>
+</body>
+</html>

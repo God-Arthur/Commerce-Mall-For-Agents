@@ -1,0 +1,15 @@
+{
+  "name": "agent-market",
+  "version": "1.0.0",
+  "private": true,
+  "description": "基于 McAfee 占优策略双向拍卖的 Agent 撮合市场",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "test": "node --test \"test/*.test.ts\"",
+    "simulate": "node scripts/simulate.ts"
+  }
+}
