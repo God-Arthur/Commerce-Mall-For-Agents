@@ -198,6 +198,11 @@ export interface ShortlistEntry {
   rank: number;
   score: number;
   productId: string;
+  /**
+   * 冷启动探索位。分数并列时若只按 id 截断，排在后面的商家永远不会被看见，
+   * 奖励层就没有证据可用。limit >= 3 时保留一个席位轮换给未入围的商家。
+   */
+  explored: boolean;
   /** 展示给买家 agent 的已验证信号（昂贵信号） */
   verifiedSignals: {
     realizedFitMean: number | null;

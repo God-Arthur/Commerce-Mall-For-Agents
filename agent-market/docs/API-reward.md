@@ -24,6 +24,7 @@
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
 | POST | `/rounds/:roundId/evaluations` | 是（买方） | 提交适配评价 |
+| POST | `/rounds/:roundId/feedback` | 是（买方，且已成交） | 反悔与延迟复评 |
 | GET | `/rounds/:roundId/evaluations/mine` | 是 | 本人的评价（仅本人可见） |
 | GET | `/merchants/:merchantId/score` | 否 | 产品力 / 发现分 / 排名 |
 | GET | `/merchants/:merchantId/reputation` | 否 | 已验证信号 vs 商家自述 |
@@ -188,4 +189,16 @@
 - 单个买家的 `fit_eval` **绝不出现在任何 merchant 端响应中**
 - 商家端只拿到**聚合后**的统计（均值、比率）
 - 商家**无法为自己的商品自评**（403 `ROLE_MISMATCH`）
-- 成交/反悔/复购的回填接口**未注册路由**，商家 agent 在任何情况下都无法构造合法回填
+- `recordOutcome` **仍然没有路由**。成交由 `POST /clear` 按结算单写入；反悔和延迟复评走 `POST /feedback`，且只能由成交买方提交；复购由下一次真实成交推断。请求里若自填 `traded` 或 `repeat`，返回 `400 OUTCOME_NOT_SELF_REPORTED`
+
+### `POST /rounds/:roundId/feedback`
+
+出清之后，成交买方可以补充：
+
+```json
+{ "product_id": "mug", "no_regret": false, "delayed_fit_eval": 0.4 }
+```
+
+未出清返回 `409 ROUND_OPEN`。未成交返回 `409 NOT_TRADED`。已经写过的值再改成另一个值返回 `409 OUTCOME_LOCKED`。卖方调用返回 `403 ROLE_MISMATCH`。
+
+候选集在 `limit >= 3` 且人数多于名额时，保留一个 `explored: true` 的席位，按买家名字和轮次轮换，避免冷启动时靠 id 排序把后面的商家永远挡在外面。重复拉取同一名单不会重复计算展示。

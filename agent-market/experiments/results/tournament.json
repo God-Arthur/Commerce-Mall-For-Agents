@@ -1,0 +1,42 @@
+{
+  "seeds": 40,
+  "gmv": 10000,
+  "firstPlace": {
+    "innovator": 40,
+    "spammer": 0,
+    "bland": 0,
+    "fit-only": 0,
+    "fake-discovery": 0
+  },
+  "meanRank": {
+    "innovator": 0,
+    "spammer": 4,
+    "bland": 2,
+    "fit-only": 1,
+    "fake-discovery": 3
+  },
+  "meanProductPower": {
+    "innovator": 0.5751,
+    "spammer": 0.1064,
+    "bland": 0.2299,
+    "fit-only": 0.2744,
+    "fake-discovery": 0.1521
+  },
+  "meanDiscovery": {
+    "innovator": 0.484,
+    "spammer": 0,
+    "bland": 0,
+    "fit-only": 0,
+    "fake-discovery": 0
+  },
+  "meanNet": {
+    "innovator": 9738.3552,
+    "spammer": 8500,
+    "bland": 9100,
+    "fit-only": 9400,
+    "fake-discovery": 8800
+  },
+  "innovatorBeatsSpammer": 40,
+  "innovatorBeatsBland": 40,
+  "singleMetricNeverFirst": 40
+}

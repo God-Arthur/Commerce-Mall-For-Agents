@@ -1,0 +1,46 @@
+{
+  "seeds": 12,
+  "rounds": 8,
+  "buyers": 16,
+  "innovatorFirst": 12,
+  "innovatorAheadOfSpammer": 12,
+  "innovatorAheadOfFitOnly": 12,
+  "meanFinalRank": {
+    "innovator": 0,
+    "spammer": 4,
+    "bland": 2,
+    "fit-only": 1,
+    "fake-discovery": 3
+  },
+  "meanProductPower": {
+    "innovator": 0.9174,
+    "spammer": 0.0942,
+    "bland": 0.3808,
+    "fit-only": 0.4626,
+    "fake-discovery": 0.138
+  },
+  "meanDiscovery": {
+    "innovator": 0.5561,
+    "spammer": 0,
+    "bland": 0,
+    "fit-only": 0,
+    "fake-discovery": 0
+  },
+  "lateImpressionShare": {
+    "innovator": 0.3333,
+    "spammer": 0.1181,
+    "bland": 0.1111,
+    "fit-only": 0.3333,
+    "fake-discovery": 0.1042
+  },
+  "priceFitCorrelation": -0.1187,
+  "elicitationOnGrid": {
+    "checks": 1200,
+    "violations": 0
+  },
+  "elicitationOffGrid": {
+    "checks": 1260,
+    "violations": 11,
+    "maxGain": 1.566619
+  }
+}

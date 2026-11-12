@@ -7,7 +7,8 @@
 
 ```bash
 node scripts/simulate-reward.ts   # 五类商家策略对抗仿真
-node --test "test/*.test.ts"      # 全部 69 个测试（基础层 43 + 奖励层 26）
+node --test "test/*.test.ts"      # 全部 84 个测试
+node experiments/run-all.ts        # 效果实验，写入 experiments/RESULTS.md
 ```
 
 ## 两层架构
@@ -50,11 +51,6 @@ node --test "test/*.test.ts"      # 全部 69 个测试（基础层 43 + 奖励�
 **适配评价绝不进定价。** `fit_eval` 只用于发现与产品力度量、排名；
 定价只走支付意愿 + McAfee 机制。若买家知道「越喜欢价格越高」就会低报喜好，信号链会崩。
 
-**商家无法自评。** 评价只能由买方提交；成交/反悔/复购的回填接口未注册路由。
-
-## 已知缺口
-
-`recordOutcome` 无调用方 → 真实服务中 `no_regret_rate` / `repeat_rate` 仍为 `null`，
-按 null 重归一化处理，不会不公平惩罚商家。
+**商家无法自评。** 评价只能由买方提交。`recordOutcome` 没有 HTTP 路由。出清按结算单写下是否成交；反悔和延迟复评走买方的 `/feedback`；复购由下一次成交推断。还没有结果的维度保持 `null`，不按 0 分惩罚商家。
 
 详细设计取舍与实现说明见 `docs/REWARD.md`。

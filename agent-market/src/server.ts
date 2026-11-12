@@ -9,6 +9,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { MarketEngine, MarketError } from "./engine.ts";
 import { RewardService } from "./reward/service.ts";
+import { submitPriceList } from "./elicitation/submit.ts";
 
 type Handler = (ctx: Ctx) => Promise<unknown> | unknown;
 
@@ -93,8 +94,51 @@ export function createApp(engine: MarketEngine, rewardService?: RewardService) {
     return { accepted: true, roundId: params.roundId, quantity: q.quantity };
   });
 
+  // 上架：要价进入基础层，商品进入入围候选。两步都成功才算数。
+  add("POST", "/rounds/:roundId/listings", true, ({ params, body, apiKey, engine: e }) => {
+    const agent = e.authenticate(apiKey!);
+    if (typeof body?.product_id !== "string" || body.product_id.trim() === "") {
+      throw new MarketError(400, "product_id 不能为空", "INVALID_INPUT");
+    }
+    if (body.product_id.includes("::")) {
+      throw new MarketError(400, "product_id 不能包含 '::'", "INVALID_INPUT");
+    }
+    const q = e.submitAsk(params.roundId, agent, body?.cost, body?.quantity ?? 1);
+    const listing = reward.registerListing({
+      roundId: params.roundId,
+      merchant: agent,
+      productId: body.product_id,
+    });
+    return {
+      accepted: true,
+      roundId: params.roundId,
+      productId: listing.productId,
+      quantity: q.quantity,
+    };
+  });
+
+  // 价格表诱发。拒绝 fit_eval / value，避免适配评价渗进出价。
+  add("POST", "/rounds/:roundId/elicitations", true, ({ params, body, apiKey, engine: e }) => {
+    const agent = e.authenticate(apiKey!);
+    if (body && typeof body === "object") {
+      if (Object.prototype.hasOwnProperty.call(body, "fit_eval") || Object.prototype.hasOwnProperty.call(body, "value")) {
+        throw new MarketError(
+          400,
+          "支付意愿只能由价格表诱发。本接口不接受 fit_eval 或 value，适配评价不进入定价。",
+          "FIT_NOT_A_PRICE",
+        );
+      }
+    }
+    return submitPriceList(e, params.roundId, agent, body?.price_list, body?.quantity ?? 1);
+  });
+
   // ── 出清与查询 ───────────────────────────────────────────────
-  add("POST", "/rounds/:roundId/clear", false, ({ params, engine: e }) => e.clearRound(params.roundId));
+  // 出清结果写回同一个奖励层实例，no_regret / repeat 才读得到成交。
+  add("POST", "/rounds/:roundId/clear", false, ({ params, engine: e }) => {
+    const result = e.clearRound(params.roundId);
+    const ingested = reward.ingestClearing(result);
+    return { ...result, outcomesRecorded: ingested.recorded };
+  });
 
   // 结果查询：需鉴权，且按调用者角色裁剪信息
   add("GET", "/rounds/:roundId/result", true, ({ params, apiKey, engine: e }) => {
@@ -153,9 +197,34 @@ export function createApp(engine: MarketEngine, rewardService?: RewardService) {
     return reward.shortlistFor(params.roundId, agent, raw === null ? 10 : Number(raw));
   });
 
-  // 注意：RewardService.recordOutcome（成交 / 反悔 / 复购回填）
-  // 刻意【不注册路由】—— 验证结果只能由系统流程写入，
-  // 商家在协议层面没有任何途径提交自评。
+  // 买方事后反馈。不能填写「是否成交」或「是否复购」——
+  // 成交来自出清，复购来自下一次真实成交。商家调用会被角色校验拒绝。
+  add("POST", "/rounds/:roundId/feedback", true, ({ params, body, apiKey, engine: e }) => {
+    const agent = e.authenticate(apiKey!);
+    if (body && typeof body === "object" && (Object.prototype.hasOwnProperty.call(body, "traded") || Object.prototype.hasOwnProperty.call(body, "repeat"))) {
+      throw new MarketError(
+        400,
+        "不能自填成交或复购。成交由出清写入，复购由后续成交推断。",
+        "OUTCOME_NOT_SELF_REPORTED",
+      );
+    }
+    const result = reward.submitFeedback({
+      roundId: params.roundId,
+      buyer: agent,
+      productId: body?.product_id,
+      noRegret: body?.no_regret,
+      delayedFitEval: body?.delayed_fit_eval,
+    });
+    return {
+      accepted: true,
+      updated: result.updated,
+      note: "事后反馈只更新反悔与延迟复评，不参与本轮定价。",
+    };
+  });
+
+  // RewardService.recordOutcome（成交 / 反悔 / 复购的底层写入）
+  // 刻意【不注册路由】。成交由 clear 写入，反悔与延迟复评走 /feedback，
+  // 复购由下一次成交推断。商家没有自评入口。
 
   // ── 行情数据服务 ─────────────────────────────────────────────
   add("GET", "/market-data", false, () => engine.marketData());

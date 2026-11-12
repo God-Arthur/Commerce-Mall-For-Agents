@@ -129,6 +129,16 @@ export class MarketEngine {
     return this.submitQuote(roundId, agent, cost, quantity);
   }
 
+  /** 撤回本 agent 在本轮的报价。轮次已出清时拒绝。没有报价时返回 false。 */
+  withdrawQuote(roundId: string, agent: Agent): boolean {
+    const round = this.getRound(roundId);
+    if (round.status !== "open") {
+      throw new MarketError(409, `轮次 ${roundId} 已出清，不可撤回报价`, "ROUND_CLOSED");
+    }
+    const book = agent.role === "buyer" ? round.buyerQuotes : round.sellerQuotes;
+    return book.delete(agent.id);
+  }
+
   // ── 3. 出清 + 4. 结算 ─────────────────────────────────────────
 
   clearRound(roundId: string): RoundResult {
