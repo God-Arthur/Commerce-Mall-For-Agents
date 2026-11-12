@@ -117,6 +117,8 @@ export class ScoringEngine {
   private readonly nowFn: () => number;
   private readonly evaluations: Evaluation[] = [];
   private readonly outcomes: OutcomeRecord[] = [];
+  /** 入围赛实际展示次数。缺省时发现精度退回「以评价数当分母」。 */
+  private readonly impressions: Array<{ merchantId: string; at: number }> = [];
   /** merchantId -> outcomes 索引，避免每次打分都全表扫描 */
   private readonly outcomesByMerchant: Map<string, OutcomeRecord[]> = new Map();
 
@@ -143,6 +145,19 @@ export class ScoringEngine {
    */
   appendEvaluation(evaluation: Evaluation): void {
     this.evaluations.push(evaluation);
+  }
+
+  /**
+   * 记录一次展示（推送）。
+   *
+   * 发现精度的分母是推送量，不是评价量。买家看见了但没有给出高适配，
+   * 仍然占用分母 —— 否则「广撒网、多数人不评价」会从精度里消失。
+   * 调用方应按「同一买家、同一轮、同一商品只计一次」去重。
+   */
+  appendImpression(merchantId: string, at: number): void {
+    if (typeof merchantId !== "string" || merchantId === "") return;
+    if (typeof at !== "number" || !Number.isFinite(at)) return;
+    this.impressions.push({ merchantId, at });
   }
 
   /**
@@ -308,7 +323,6 @@ export class ScoringEngine {
       }
     }
 
-    const totalImpressions = sampleSize;
     const rawDiscoveryEvents = evals.filter(
       (e) => e.priorIntent === false && e.fitEval >= cfg.discoveryFitThreshold,
     ).length;
@@ -316,7 +330,22 @@ export class ScoringEngine {
     // 分母是**全部**推送量，不是只有高适配的那部分。
     // 这是防「广撒网碰运气」的关键：推 1000 条中 30 条蒙对了，
     // 精度只有 3%，远低于只推 10 条命中 4 条的商家。
-    const discoveryPrecision = evImpr > 0 ? clamp01(evEvents / evImpr) : 0;
+    //
+    // 没有单独记录展示时，推送量 = 评价数（历史口径，既有测试与仿真不变）。
+    // 有展示记录时，分母取展示与评价中更大的衰减权重：
+    // 多出来的展示会稀释精度；评价不会因为漏记展示而凭空抬高精度。
+    let impCount = 0;
+    let impWeight = 0;
+    for (const imp of this.impressions) {
+      if (imp.merchantId !== merchantId) continue;
+      impCount++;
+      impWeight += decay(imp.at);
+    }
+    const totalImpressions = impCount > 0 ? Math.max(impCount, sampleSize) : sampleSize;
+    const precisionDen = impCount > 0 ? Math.max(impWeight, evImpr) : evImpr;
+    const discoveryPrecision = precisionDen > 0 ? clamp01(evEvents / precisionDen) : 0;
+    // 发现率看的是「给出了评价的那些次里，有多少真是发现」。
+    // 它和精度相乘：铺得很开但应答里也不准的商家，两个因子一起掉。
     const discoveryRate = evImpr > 0 ? clamp01(evEvents / evImpr) : 0;
 
     // 推送量不足时发现分不生效（置 0）：否则 1 次推送 1 次发现就能拿满分
@@ -422,6 +451,7 @@ export class ScoringEngine {
     const ids = new Set<string>();
     for (const e of this.evaluations) ids.add(e.merchantId);
     for (const o of this.outcomes) ids.add(o.merchantId);
+    for (const imp of this.impressions) ids.add(imp.merchantId);
 
     const scored = [...ids].map((id) => ({ id, s: this.score(id, 0) }));
     // 排序：merchantRank 降序；同分时样本量大者优先（更可信）

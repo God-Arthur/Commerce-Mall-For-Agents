@@ -15,7 +15,9 @@
 | GET | `/rounds` | 否 | 列出租次 |
 | POST | `/rounds/:roundId/bids` | 是（买方） | 提交出价 |
 | POST | `/rounds/:roundId/asks` | 是（卖方） | 提交要价 |
-| POST | `/rounds/:roundId/clear` | 否 | 触发本轮出清 |
+| POST | `/rounds/:roundId/listings` | 是（卖方） | 上架商品并提交要价 |
+| POST | `/rounds/:roundId/elicitations` | 是（买方） | 价格表诱发支付意愿 |
+| POST | `/rounds/:roundId/clear` | 否 | 触发本轮出清，并回填成交 |
 | GET | `/rounds/:roundId/result` | 是 | 查询本轮结果（按角色裁剪） |
 | GET | `/market-data` | 否 | 聚合行情 |
 | GET | `/health` | 否 | 健康检查 |
@@ -25,6 +27,7 @@
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
 | POST | `/rounds/:roundId/evaluations` | 是（买方） | 提交适配评价 |
+| POST | `/rounds/:roundId/feedback` | 是（买方，已成交） | 反悔与延迟复评 |
 | GET | `/rounds/:roundId/evaluations/mine` | 是 | 本人的评价（仅本人可见） |
 | GET | `/merchants/:merchantId/score` | 否 | 产品力 / 发现分 / 排名 |
 | GET | `/merchants/:merchantId/reputation` | 否 | 已验证信号 vs 商家自述 |
@@ -94,7 +97,7 @@
 
 ### `POST /rounds/:roundId/bids` （买方）
 
-> **`value` 的语义**：这不是消费者事先给定的数字，而是买方 agent 通过评价候选商品、**诱发**出来的支付意愿 `v`。这是「消费者只能给出需求评价」这一前提的直接产物。
+> **`value` 的语义**：这是买方 agent 已经诱发出的支付意愿。消费者本人不直接填这个数字，走下面的价格表接口。本接口留给已经持有 `v` 的 agent。
 
 **请求头**：`X-API-Key: sk_...`
 **请求体**
@@ -127,6 +130,42 @@
 ```
 
 错误同上（`403` 适用于买方提交要价）。
+
+### `POST /rounds/:roundId/listings` （卖方）
+
+上架一件商品，同时把 `cost` 写入本轮要价。入围候选从这里来，不等到有人评价之后才出现。
+
+```json
+{ "product_id": "mug", "cost": 30, "quantity": 1 }
+```
+
+同一商家同一轮只能上架一个 `product_id`。换成另一个商品返回 `409 LISTING_CONFLICT`。
+
+### `POST /rounds/:roundId/elicitations` （买方）
+
+消费者对一组标价回答买或不买。出价等于被接受的最高价格；一个都不接受则撤掉本轮出价。
+
+```json
+{
+  "price_list": [
+    { "price": 10, "accept": true },
+    { "price": 20, "accept": true },
+    { "price": 30, "accept": false }
+  ],
+  "quantity": 1
+}
+```
+
+请求体里如果出现 `fit_eval` 或 `value`，返回 `400 FIT_NOT_A_PRICE`。适配评价不参与这次计算。价格表不单调返回 `400 NON_MONOTONE`。
+
+**响应 200**
+```json
+{
+  "elicitedValue": 20,
+  "bidSubmitted": true,
+  "note": "出价等于价格表上的最高可接受价格。该计算不读取 fit_eval，适配评价不进入定价。"
+}
+```
 
 > 同一 agent 在同一轮**重复提交 = 覆盖**，不累加。agent 可据此修改报价。
 

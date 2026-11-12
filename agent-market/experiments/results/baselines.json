@@ -1,0 +1,49 @@
+{
+  "seed": 20261112,
+  "fixed": {
+    "vcgBilateralSubsidy": 5,
+    "vcgTwoByTwoBudget": -6,
+    "midpointGain": 0.4,
+    "payAsBidGain": 0.9,
+    "mcafeeGainOnMidpointExample": 0,
+    "vcgGainOnBilateral": 0
+  },
+  "random": {
+    "mcafee": {
+      "markets": 200,
+      "subsidyMarkets": 0,
+      "meanBudget": 3.2424,
+      "meanWelfareRatio": 0.9709,
+      "dsicViolations": 0,
+      "dsicChecks": 2400,
+      "maxDeviationGain": 0
+    },
+    "vcg": {
+      "markets": 200,
+      "subsidyMarkets": 200,
+      "meanBudget": -4.931,
+      "meanWelfareRatio": 1,
+      "dsicViolations": 0,
+      "dsicChecks": 2400,
+      "maxDeviationGain": 0
+    },
+    "midpoint": {
+      "markets": 200,
+      "subsidyMarkets": 0,
+      "meanBudget": 0,
+      "meanWelfareRatio": 1,
+      "dsicViolations": 874,
+      "dsicChecks": 2400,
+      "maxDeviationGain": 4.911523
+    },
+    "payAsBid": {
+      "markets": 200,
+      "subsidyMarkets": 0,
+      "meanBudget": 39.9596,
+      "meanWelfareRatio": 1,
+      "dsicViolations": 1368,
+      "dsicChecks": 2400,
+      "maxDeviationGain": 10.496576
+    }
+  }
+}

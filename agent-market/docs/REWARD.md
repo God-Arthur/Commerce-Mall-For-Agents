@@ -237,18 +237,28 @@ realized_fit_mean = (Σ(w·x) / Σw) × recency_factor
 src/reward/
   domain.ts     契约：全部类型与默认配置
   scoring.ts    评分引擎（纯计算，无 IO）
-  service.ts    服务层：校验、幂等、信息隔离、候选集排序
+  service.ts    服务层：校验、幂等、信息隔离、候选集排序、出清回填
+src/elicitation/
+  price-list.ts 价格表 → 保留价（不读取 fit_eval）
+  submit.ts     把保留价写进本轮出价
 scripts/
   simulate-reward.ts   五类商家策略仿真
+experiments/
+  run-all.ts           厚度、对照、多种子、消融、闭环
 test/
-  reward.test.ts       26 个测试
+  reward.test.ts       评分引擎测试
+  loop.test.ts         出清回填、反馈、复购、展示稀释
+  effect.test.ts       效果实验的断言版
 ```
+
+出清会调用 `ingestClearing`：本轮每条评价按结算单写成成交或未成交。`no_regret` 与 `delayed_fit_eval` 只能由该买方在成交后通过 `/feedback` 补上，写过的值不能翻案。`repeat` 不接受自填；同一对买家和商家在更晚的轮次再次成交时，系统把此前为 `null` 的复购标记补成 `true`。展示（入围名单和评价）进入发现精度的分母，多出来的展示会稀释精度。
 
 新增 API（挂载于基础层服务）：
 
 | 方法 | 路径 | 鉴权 |
 |---|---|---|
 | POST | `/rounds/:roundId/evaluations` | 是（买方） |
+| POST | `/rounds/:roundId/feedback` | 是（买方，已成交） |
 | GET | `/rounds/:roundId/evaluations/mine` | 是（仅本人可见） |
 | GET | `/merchants/:merchantId/score` | 否 |
 | GET | `/merchants/:merchantId/reputation` | 否 |

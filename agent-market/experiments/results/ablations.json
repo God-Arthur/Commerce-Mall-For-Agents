@@ -1,0 +1,36 @@
+{
+  "geometric": {
+    "innovator": 0.7459,
+    "discoveryOnly": 0.1228,
+    "fitOnly": 0.3927
+  },
+  "linear": {
+    "innovator": 0.76,
+    "discoveryOnly": 0.335,
+    "fitOnly": 0.665
+  },
+  "missingOutcomes": {
+    "renormalized": 0.92,
+    "asZero": 0.322
+  },
+  "outcomeGap": {
+    "innovatorPowerWith": 0.5552,
+    "spammerPowerWith": 0.1001,
+    "innovatorNoRegretWith": 0.3813,
+    "spammerNoRegretWith": 0.1514,
+    "innovatorNoRegretWithout": null,
+    "spammerNoRegretWithout": null
+  },
+  "precisionPenalty": {
+    "withPenalty": 0.385,
+    "withoutPenalty": 0.55
+  },
+  "impressionDilution": {
+    "focusedPrecision": 0.3,
+    "sprayedPrecision": 0.06
+  },
+  "recency": {
+    "fresh": 1,
+    "halfLifeAgo": 0.5
+  }
+}

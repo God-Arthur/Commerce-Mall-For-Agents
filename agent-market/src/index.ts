@@ -13,6 +13,7 @@ server.listen(PORT, HOST, () => {
   console.log(`  地址     http://${HOST}:${PORT}`);
   console.log(`  健康检查 http://${HOST}:${PORT}/health`);
   console.log(`  机制     McAfee (1992) 占优策略双向拍卖（周期性出清）`);
+  console.log(`  诱发     价格表诱发出价；fit_eval 不进入定价`);
   console.log(`  信息隔离 单 agent 报价私密，仅公开聚合结果`);
 });
 

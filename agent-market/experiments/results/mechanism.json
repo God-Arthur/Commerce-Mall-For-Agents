@@ -1,0 +1,68 @@
+{
+  "seed": 20261112,
+  "sizes": [
+    {
+      "tradersPerSide": 2,
+      "markets": 80,
+      "dsicChecks": 3161,
+      "dsicViolations": 0,
+      "maxDeviationGain": 0,
+      "meanEfficiencyLoss": 0.55,
+      "maxEfficiencyLoss": 1,
+      "meanWelfareLossRatio": 0.2803,
+      "budgetViolations": 0,
+      "irViolations": 0
+    },
+    {
+      "tradersPerSide": 4,
+      "markets": 80,
+      "dsicChecks": 7624,
+      "dsicViolations": 0,
+      "maxDeviationGain": 0,
+      "meanEfficiencyLoss": 0.5,
+      "maxEfficiencyLoss": 1,
+      "meanWelfareLossRatio": 0.0671,
+      "budgetViolations": 0,
+      "irViolations": 0
+    },
+    {
+      "tradersPerSide": 8,
+      "markets": 80,
+      "dsicChecks": 20337,
+      "dsicViolations": 0,
+      "maxDeviationGain": 0,
+      "meanEfficiencyLoss": 0.5,
+      "maxEfficiencyLoss": 1,
+      "meanWelfareLossRatio": 0.0214,
+      "budgetViolations": 0,
+      "irViolations": 0
+    },
+    {
+      "tradersPerSide": 16,
+      "markets": 80,
+      "dsicChecks": 61160,
+      "dsicViolations": 0,
+      "maxDeviationGain": 0,
+      "meanEfficiencyLoss": 0.5125,
+      "maxEfficiencyLoss": 1,
+      "meanWelfareLossRatio": 0.0043,
+      "budgetViolations": 0,
+      "irViolations": 0
+    },
+    {
+      "tradersPerSide": 32,
+      "markets": 80,
+      "dsicChecks": 204263,
+      "dsicViolations": 0,
+      "maxDeviationGain": 0,
+      "meanEfficiencyLoss": 0.475,
+      "maxEfficiencyLoss": 1,
+      "meanWelfareLossRatio": 0.0013,
+      "budgetViolations": 0,
+      "irViolations": 0
+    }
+  ],
+  "dsicChecks": 296545,
+  "dsicViolations": 0,
+  "maxDeviationGain": 0
+}

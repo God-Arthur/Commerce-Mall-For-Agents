@@ -33,7 +33,7 @@ node src/index.ts
 # -> Agent 市场已启动
 #    地址     http://127.0.0.1:8787
 
-# 跑全部测试（69 个：基础层 43 + 奖励层 26）
+# 跑全部测试（84 个，含效果实验的断言版）
 node --test "test/*.test.ts"
 
 # 跑仿真，直观看「说真话是占优策略」
@@ -41,6 +41,9 @@ node scripts/simulate.ts
 
 # 奖励层仿真：五类商家策略对抗（真创新者 vs 刷分者 vs 单项作弊者……）
 node scripts/simulate-reward.ts
+
+# 完整实验：厚度、机制对照、多种子对抗、消融、闭环。结果写入 experiments/RESULTS.md
+node experiments/run-all.ts
 ```
 
 **零 npm 依赖**，克隆后直接运行。
@@ -109,14 +112,19 @@ agent-market/
 │   ├── engine.ts             # 市场引擎：注册/轮次/出清/结算/声誉/行情
 │   ├── reputation.ts         # 声誉模块（绝不参与定价）
 │   ├── reward/               # 奖励层：需求发现与产品力（fit_eval 与定价解耦）
+│   ├── elicitation/          # 价格表诱发支付意愿（不读取 fit_eval）
 │   ├── server.ts             # HTTP 层（零依赖，node:http）
 │   └── index.ts              # 服务入口
-├── test/                     # 69 个测试（基础层 43 + 奖励层 26）
+├── test/                     # 84 个测试（含效果实验断言）
 │   ├── mechanism.test.ts     # 机制单元测试 + 边界
 │   ├── dsic.test.ts          # DSIC 穷举（最重要）
 │   ├── properties.test.ts    # 预算平衡 / IR / 效率损失 / VCG 对照
 │   ├── api.test.ts           # API 集成 + 信息隔离
-│   └── reward.test.ts        # 奖励层：解耦红线 / Goodhart 防御
+│   ├── reward.test.ts        # 奖励层：解耦红线 / Goodhart 防御
+│   ├── elicitation.test.ts   # 价格表诱发
+│   ├── loop.test.ts          # 出清回填、反馈、复购
+│   └── effect.test.ts        # 效果实验断言
+├── experiments/              # 可复现实验，结果见 RESULTS.md
 ├── scripts/
 │   ├── simulate.ts           # 基础层仿真：说真话是占优策略
 │   └── simulate-reward.ts    # 奖励层仿真：五类商家策略对抗
@@ -143,7 +151,9 @@ agent-market/
 | GET | `/rounds` | 否 | 列出租次 |
 | POST | `/rounds/:roundId/bids` | 是（买方） | 提交出价 `{value, quantity}` |
 | POST | `/rounds/:roundId/asks` | 是（卖方） | 提交要价 `{cost, quantity}` |
-| POST | `/rounds/:roundId/clear` | 否 | 触发出清 |
+| POST | `/rounds/:roundId/listings` | 是（卖方） | 上架并提交要价 |
+| POST | `/rounds/:roundId/elicitations` | 是（买方） | 用价格表诱发出价 |
+| POST | `/rounds/:roundId/clear` | 否 | 触发出清，并回填成交 |
 | GET | `/rounds/:roundId/result` | 是 | 查询结果（按角色裁剪） |
 | GET | `/market-data` | 否 | 聚合行情 |
 | GET | `/health` | 否 | 健康检查 |
@@ -153,6 +163,7 @@ agent-market/
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
 | POST | `/rounds/:roundId/evaluations` | 是（买方） | 提交适配评价 fit_eval |
+| POST | `/rounds/:roundId/feedback` | 是（买方） | 成交后的反悔 / 延迟复评 |
 | GET | `/rounds/:roundId/evaluations/mine` | 是 | 本人的评价（仅本人可见） |
 | GET | `/merchants/:merchantId/score` | 否 | 产品力 / 发现分 / 排名 |
 | GET | `/merchants/:merchantId/reputation` | 否 | 已验证信号 vs 商家自述 |
@@ -176,7 +187,7 @@ agent-market/
 **③ 适配评价（fit_eval）不进定价**
 `fit_eval` 只用于发现与产品力度量、排名；定价只走支付意愿 + McAfee 机制。
 若买家知道「越喜欢价格越高」，就会低报喜好 —— 产品力信号链会在源头崩掉。
-另：评价只能由买方提交，**商家无法自评**；成交/反悔/复购的回填接口未注册路由。
+另：评价只能由买方提交，**商家无法自评**。成交由出清写入，反悔和延迟复评只能由成交买方事后提交，复购由下一次真实成交推断。`recordOutcome` 仍然没有 HTTP 路由。
 
 **④ 周期性出清，不用连续撮合**
 连续撮合一般不具占优策略真话性质：成交顺序给先到者优势，价格会被后来的报价追溯性影响。
@@ -205,10 +216,19 @@ agent-market/
 
 ---
 
-## 已知缺口
+## 闭环与实验
 
-`recordOutcome` 无调用方 → 真实服务中 `no_regret_rate` / `repeat_rate` 仍为 `null`，
-按 null 重归一化处理，不会不公平惩罚商家。详见 [`docs/REWARD.md`](docs/REWARD.md)。
+买方用价格表回答「这个价买不买」，保留价成为 McAfee 出价。`fit_eval` 不能出现在诱发接口里。出清后，系统按结算单写下是否成交；买方只能补充反悔和延迟复评；同一对买家和商家再次成交时，复购从未知改成已发生。
+
+入围名单按排名截取，并在名单够长时留一个探索位，避免冷启动时靠名字排序把后面的商家永久挡在外面。展示计入发现精度的分母，只靠铺量会被稀释。
+
+实验结论（种子与原始 JSON 见 [`experiments/RESULTS.md`](experiments/RESULTS.md)）：
+
+- 每侧 2 到 32 人、合计 296,545 次单边偏离，占优策略违反 0 次。福利损失占比从约 28% 降到 0.13%，损失笔数始终不超过 1。
+- 200 个随机市场上，McAfee 需要补贴的次数是 0，偏离获利 0 次，平均福利比 97%。VCG 福利比 100%，但 200/200 需要补贴。边际中点价和按报价支付不贴钱，但改报能赚钱。
+- 40 个种子里，真创新者 40 次排第一。同样 10,000 元成交额，净收入约 9738 对刷分者的 8500。
+- 12 个种子的多轮闭环里，创新者 12 次排第一，后几轮展示份额约 33%，刷分者约 12%。出清价和平均适配分的相关系数约 -0.12。
+- 真实价值落在价格表格子上时，1200 次改答获利 0 次。落在格子之间时，量化会留下缝隙（1260 次里 11 次改答能多赚）。格子要盖住真值，这条缝才消失。
 
 ---
 
